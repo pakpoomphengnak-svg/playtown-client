@@ -1,0 +1,63 @@
+/* ─────────────────────────────────────────────
+   VEHICLE CONTROLS  (v2)
+   ซ้าย: เลี้ยวซ้าย / เลี้ยวขวา
+   ขวา:  เดินหน้า / ถอยหลัง
+───────────────────────────────────────────── */
+
+/* หมายเหตุ: ไม่มี element id="dpad" ในระบบจริง (vehicle.js สร้างแค่ #dpad-turn
+   และ #dpad-drive แยกกัน) — เคย​มี rule #dpad { display: none; } ค้างอยู่ตรงนี้
+   จากดีไซน์เก่า ลบทิ้งเพราะเป็น dead code ไม่มีผลอะไรแล้ว */
+
+/* ── wrapper ฝั่งซ้าย (เลี้ยว) ── */
+#dpad-turn {
+  position: fixed;
+  /* บวก safe-area-inset-bottom กันโดน gesture bar/navigation bar ของมือถือบัง
+     (เกิดบ่อยตอนเล่นแบบ PWA standalone โหมด landscape) — ใช้ pattern เดียวกับ
+     #stat-bars และ #speedometer ใน hud.css */
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 36px);
+  left: calc(env(safe-area-inset-left, 0px) + 24px);
+  display: none;
+  gap: 14px;
+  flex-direction: row;
+  align-items: center;
+  z-index: 20;
+  pointer-events: all;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ── wrapper ฝั่งขวา (เดิน) ── */
+#dpad-drive {
+  position: fixed;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 36px);
+  right: calc(env(safe-area-inset-right, 0px) + 24px);
+  display: none;
+  gap: 14px;
+  flex-direction: column;
+  align-items: center;
+  z-index: 20;
+  pointer-events: all;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.dpad-btn {
+  width: 70px;
+  height: 70px;
+  border-radius: 16px;
+  background: rgba(255,255,255,0.13);
+  border: 2px solid rgba(255,255,255,0.30);
+  backdrop-filter: blur(6px);
+  color: #fff;
+  font-size: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.dpad-btn.active {
+  background: rgba(255,210,60,0.32);
+  border-color: rgba(255,210,60,0.75);
+}

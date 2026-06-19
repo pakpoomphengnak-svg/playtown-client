@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>PLAYTOWN</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#000000">
+  <link rel="apple-touch-icon" href="assets/playtown/icon-192.png">
+  <link rel="stylesheet" href="css/game.css">
+  <link rel="stylesheet" href="css/hud.css">
+  <link rel="stylesheet" href="css/vehicle-controls.css">
+
+  <!-- ── ป้องกัน text selection / callout ทั้งเกม ── -->
+  <style>
+    * {
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      user-select: none;
+    }
+    input, textarea, [contenteditable] {
+      -webkit-user-select: text;
+      user-select: text;
+    }
+  </style>
+  <script>
+    document.addEventListener('selectstart', function(e) {
+      if (e.target.closest('input, textarea, [contenteditable]')) return;
+      e.preventDefault();
+    });
+    document.addEventListener('contextmenu', function(e) {
+      e.preventDefault();
+    });
+  </script>
+</head>
+<body>
+
+  <div id="hud">
+    <div id="coords">x: 0 &nbsp; z: 0</div>
+  </div>
+
+  <div id="joystick-zone">
+    <div id="joystick-base">
+      <div id="joystick-knob"></div>
+    </div>
+  </div>
+
+  <div id="cam-zone"></div>
+
+  <div id="sprint-btn"><img src="assets/buttons/sprint-btn.png" alt="sprint"></div>
+  <div id="attack-btn"><img src="assets/buttons/attack-btn.png" alt="attack"></div>
+
+  <script src="js/error-log.js"></script>
+
+  <!-- ── Socket.IO (ต้องโหลดก่อน script เกมทุกตัว) ── -->
+  <script src="/socket.io/socket.io.js"></script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+  <script>
+    (function () {
+      var v = Date.now();
+      [
+        'js/core/scene.js',
+        'js/core/lighting.js',
+        'js/world/ground.js',
+        'js/world/trees.js',
+        'js/world/roads.js',
+        'js/building/landmark.js',
+        'js/building/parking.js',
+        'js/building/appleFarm.js',
+        'js/building/grapeFarm.js',
+        'js/building/economy.js',
+        'js/building/store.js',
+        'js/building/rebel.js',
+        'js/building/atm.js',
+        'js/building/gas_station.js',
+        'js/multiplayer/socketClient.js',   // ← ใหม่ (ก่อน dataService)
+        'js/dataService.js',
+        'js/system/player.js',
+        'js/system/notification.js',
+        'js/system/inventory.js',
+        'js/system/hotbar.js',
+        'js/system/hud.js',
+        'js/item/apple.js',
+        'js/item/apple_packaged.js',
+        'js/item/grape.js',
+        'js/item/juice_grape.js',
+        'js/item/cash.js',
+        'js/item/water_bottle.js',
+        'js/item/burger.js',
+        'js/item/car_key.js',
+        'js/item/safe_key.js',
+        'js/item/coffee.js',
+        'js/item/spray.js',
+        'js/character/characterModel.js',
+        'js/character/characterAnim.js',
+        'js/camera/orbitCamera.js',
+        'js/system/minimap.js',
+        'js/input/joystick.js',
+        'js/input/cameraDrag.js',
+        'js/input/keyboard.js',
+        'js/input/sprintButton.js',
+        'js/input/attackButton.js',
+        'js/vehicle/starter_car.js',
+        'js/vehicle/audi.js',
+        'js/building/showroom.js',
+        'js/system/vehicle.js',
+        'js/pickup/applePickup.js',
+        'js/pickup/grapePickup.js',
+        'js/progress/appleProgress.js',
+        'js/progress/grapeProgress.js',
+        'js/system/marketShop.js',
+        'js/system/storeShop.js',
+        'js/system/safeBox.js',
+        'js/system/bank.js',
+        'js/system/craftTable.js',
+        'js/system/dealership.js',
+        'js/system/garage.js',
+        'js/system/gas.js',
+        'js/system/setting.js',
+        'js/game.js'
+      ].forEach(function (src) {
+        document.write('<scr' + 'ipt src="' + src + '?v=' + v + '"></scr' + 'ipt>');
+      });
+    })();
+  </script>
+
+  <!-- ล้าง Service Worker เก่าออกอัตโนมัติ -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function(regs) {
+        regs.forEach(function(reg) { reg.unregister(); });
+        if (regs.length > 0) location.reload();
+      });
+    }
+  </script>
+</body>
+</html>

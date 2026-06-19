@@ -1,0 +1,70 @@
+/* ── hud.css — Stat bars (GTA V layout) ── */
+
+#server-logo {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: 50px;
+  height: 50px;
+  object-fit: contain;
+  z-index: 20;
+  pointer-events: none;
+  -webkit-user-drag: none;
+  user-select: none;
+}
+
+/* stat bars อยู่มุมซ้ายล่าง ใต้ minimap
+   minimap กว้าง 130px + margin 4px = 134px
+   ดังนั้น stat bars เริ่มที่ left: 4px bottom: 4px */
+#stat-bars {
+  position: fixed;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 4px);
+  left: calc(env(safe-area-inset-left, 0px) + 4px);
+  display: flex;
+  flex-direction: column;
+  gap: 0px;
+  z-index: 20;
+  pointer-events: none;
+}
+
+.stat-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 0px;
+}
+
+.stat-bar {
+  height: 10px;
+  background: rgba(0,0,0,0.55);
+  border: 1.5px solid rgba(255,255,255,0.20);
+  border-radius: 0px;
+  overflow: hidden;
+}
+
+.bar-long   { width: 80px; }
+.stamina-bar.bar-long { width: 160px; }
+.bar-short  { width: 40px; }
+
+.stat-fill {
+  height: 100%;
+  width: 100%;
+  border-radius: 0px;
+  transition: width 0.1s linear;
+}
+
+.hp-bar .stat-fill      { background: linear-gradient(90deg, #c0392b, #e74c3c); }
+.stamina-bar .stat-fill { background: linear-gradient(90deg, #1a7b3f, #2ecc71); }
+
+@keyframes stamina-exhausted {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.25; }
+}
+.stamina-bar.exhausted .stat-fill {
+  background: linear-gradient(90deg, #7b1a1a, #e74c3c);
+  animation: stamina-exhausted 0.5s ease-in-out infinite;
+}
+.food-bar .stat-fill    { background: linear-gradient(90deg, #b85c00, #e8a838); }
+.water-bar .stat-fill   { background: linear-gradient(90deg, #1a6fa8, #3aaeee); }
+.armor-bar .stat-fill   { background: linear-gradient(90deg, #b0b0b0, #ffffff); width: 0%; }
+.brain-bar .stat-fill   { background: linear-gradient(90deg, #6a0dad, #bf5fff); }
+.hygiene-bar .stat-fill { background: linear-gradient(90deg, #007a7a, #00e5e5); }

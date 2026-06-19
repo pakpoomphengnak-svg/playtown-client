@@ -1,0 +1,15 @@
+{
+  "name": "PLAYTOWN",
+  "short_name": "PLAYTOWN",
+  "description": "By SEEUNOVA",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#4a7a28",
+  "theme_color": "#000000",
+  "icons": [
+    { "src": "assets/playtown/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "assets/playtown/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
