@@ -9,7 +9,7 @@ const USE_SERVER = true;
 // URL ของ server — เปลี่ยนเป็น domain จริงตอน deploy
 const SERVER_URL = window.location.hostname === 'localhost'
   ? 'http://localhost:3000'
-  : 'https//playtown-production.up.railway.app';  // ถ้า deploy บน host เดียวกัน
+  : 'https://playtown-production.up.railway.app';  // ถ้า deploy บน host เดียวกัน
 
 const DataService = {
 
