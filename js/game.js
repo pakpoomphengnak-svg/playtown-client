@@ -45,6 +45,10 @@ const coordEl = document.getElementById('coords');
 const clock   = new THREE.Clock();
 let elapsedTime = 0;
 
+// ── Multiplayer: ส่งตำแหน่งให้ server เป็นระยะ (ไม่ส่งทุกเฟรม กันรก bandwidth) ──
+let _posSendTimer = 0;
+const POS_SEND_INTERVAL = 0.1; // วินาที (10 ครั้ง/วิ)
+
 function animate() {
   requestAnimationFrame(animate);
   const dt = Math.min(clock.getDelta(), 0.05);
@@ -105,6 +109,8 @@ function animate() {
     updateCharacterAnimation(false, actualSprinting, dt);
   }
 
+  if (typeof RemotePlayers !== 'undefined') RemotePlayers.update(dt);
+
   checkNearVehicle();
   if (typeof updateSafeBox === 'function') updateSafeBox();
   if (typeof updateATM === 'function') updateATM();
@@ -136,6 +142,22 @@ function animate() {
 
   coordEl.textContent = `x: ${camTarget.position.x.toFixed(1)}  z: ${camTarget.position.z.toFixed(1)}`;
 
+  // ── Multiplayer: ส่งตำแหน่งตัวเองให้คนอื่นเห็น (throttled) ──
+  if (typeof SocketClient !== 'undefined' && SocketClient.isConnected()) {
+    _posSendTimer += dt;
+    if (_posSendTimer >= POS_SEND_INTERVAL) {
+      _posSendTimer = 0;
+      const activeVehicleForPos = vehicles.find(v => v.driven);
+      SocketClient.sendPosition(
+        Player.x,
+        Player.z,
+        Player.rotY,
+        isInVehicle,
+        activeVehicleForPos ? activeVehicleForPos.mesh.uuid : null
+      );
+    }
+  }
+
   renderer.render(scene, camera);
 }
 
@@ -152,5 +174,38 @@ setInterval(() => Player.save(), 30_000);
 // ── บันทึกตอนผู้เล่นออกจากเกม (ปิดแท็บ/รีเฟรช/สลับแอป) ──
 window.addEventListener('pagehide',     () => Player.save());
 window.addEventListener('beforeunload', () => Player.save());
+
+// ── Multiplayer: เชื่อมต่อ server และ sync ผู้เล่นอื่นในฉาก ──
+if (typeof SocketClient !== 'undefined') {
+  const MULTIPLAYER_SERVER_URL = window.location.hostname === 'localhost'
+    ? 'http://localhost:3000'
+    : 'https://playtown-production.up.railway.app'; // TODO: เปลี่ยนเป็น URL จริงของ Railway ถ้าไม่ตรงนี้
+
+  SocketClient.on('onCurrentPlayers', (players) => {
+    if (typeof RemotePlayers !== 'undefined') RemotePlayers.addAll(players);
+  });
+
+  SocketClient.on('onPlayerJoined', (player) => {
+    if (typeof RemotePlayers !== 'undefined') RemotePlayers.add(player);
+  });
+
+  SocketClient.on('onPlayerMoved', (data) => {
+    if (typeof RemotePlayers !== 'undefined') RemotePlayers.updatePosition(data);
+  });
+
+  SocketClient.on('onPlayerLeft', (data) => {
+    if (typeof RemotePlayers !== 'undefined') RemotePlayers.remove(data.id);
+  });
+
+  SocketClient.on('onSelfId', () => {
+    // ใช้ username จากระบบ login (Firestore) เป็นชื่อที่คนอื่นเห็น
+    const displayName = (typeof AuthService !== 'undefined' && AuthService.getCurrentUsername())
+      || Player.name
+      || 'Player';
+    SocketClient.joinGame(displayName, Player.x, Player.z, Player.rotY);
+  });
+
+  SocketClient.connect(MULTIPLAYER_SERVER_URL);
+}
 
 animate();
