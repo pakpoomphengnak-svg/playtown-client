@@ -44,6 +44,7 @@ const AuthService = (() => {
       passwordHash,
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       lastLogin: firebase.firestore.FieldValue.serverTimestamp(),
+      profile: null, // ข้อมูลตัวละคร (ชื่อ/สกุล/วันเกิด/เพศ) — กรอกหลังสมัครครั้งแรก
       stats: {
         name: username,
         hp: 100, food: 100, water: 100, hygiene: 100, brain: 100, stamina: 100,
@@ -93,6 +94,51 @@ const AuthService = (() => {
     return { ok: true, data };
   }
 
+  // ── ตรวจสอบว่าผู้เล่นกรอกข้อมูลตัวละคร (ชื่อ/สกุล/วันเกิด/เพศ) แล้วหรือยัง ──
+  async function hasProfile(username) {
+    const doc = await db.collection('players').doc(username).get();
+    if (!doc.exists) return false;
+    const data = doc.data();
+    return !!(data.profile && data.profile.firstName);
+  }
+
+  // ── บันทึกข้อมูลตัวละคร ──
+  async function saveProfile(username, profile) {
+    const { firstName, lastName, day, month, year, gender } = profile;
+
+    if (!firstName || !firstName.trim()) {
+      return { ok: false, error: 'กรุณากรอกชื่อ' };
+    }
+    if (!lastName || !lastName.trim()) {
+      return { ok: false, error: 'กรุณากรอกนามสกุล' };
+    }
+    const d = parseInt(day, 10);
+    const m = parseInt(month, 10);
+    const y = parseInt(year, 10);
+    if (!d || d < 1 || d > 31 || !m || m < 1 || m > 12 || !y || y < 2400 || y > 2600) {
+      return { ok: false, error: 'กรุณากรอกวัน/เดือน/ปีเกิดให้ถูกต้อง' };
+    }
+    if (!['male', 'female', 'lgbtq'].includes(gender)) {
+      return { ok: false, error: 'กรุณาเลือกเพศ' };
+    }
+
+    const profileData = {
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      birthDay: d,
+      birthMonth: m,
+      birthYear: y,
+      gender,
+    };
+
+    await db.collection('players').doc(username).update({
+      profile: profileData,
+      'stats.name': `${profileData.firstName} ${profileData.lastName}`,
+    });
+
+    return { ok: true, data: profileData };
+  }
+
   // ── จำ session ไว้ใน localStorage (เพื่อไม่ต้อง login ซ้ำทุกครั้ง) ──
   function _saveSession(username) {
     localStorage.setItem('playtown_session', username);
@@ -123,6 +169,8 @@ const AuthService = (() => {
     getCurrentUsername,
     setCurrentUsername,
     hashPassword,
+    hasProfile,
+    saveProfile,
   };
 
 })();

@@ -1,18 +1,44 @@
 // client/js/auth/loginUI.js
 // ─────────────────────────────────────────────
 // หน้า Login — แสดงก่อนเข้าเกม จัดการ register/login
+// แยกเป็น 2 แท็บ: เข้าสู่ระบบ / สมัครสมาชิก
 // เมื่อสำเร็จจะเรียก window.onLoginSuccess() (ผูกไว้ใน game.js)
 // ─────────────────────────────────────────────
 
 (function () {
 
-  const screen   = document.getElementById('login-screen');
-  const userIn   = document.getElementById('login-username');
-  const passIn   = document.getElementById('login-password');
-  const loginBtn = document.getElementById('login-btn');
-  const regBtn   = document.getElementById('register-btn');
-  const errorEl  = document.getElementById('login-error');
-  const loadingEl = document.getElementById('login-loading');
+  const screen      = document.getElementById('login-screen');
+  const errorEl     = document.getElementById('login-error');
+  const loadingEl   = document.getElementById('login-loading');
+
+  // แท็บ
+  const tabLogin    = document.getElementById('tab-login');
+  const tabRegister = document.getElementById('tab-register');
+  const loginForm   = document.getElementById('login-form');
+  const registerForm = document.getElementById('register-form');
+
+  // ฟอร์มเข้าสู่ระบบ
+  const loginUserIn = document.getElementById('login-username');
+  const loginPassIn = document.getElementById('login-password');
+  const loginBtn    = document.getElementById('login-btn');
+
+  // ฟอร์มสมัครสมาชิก
+  const regUserIn   = document.getElementById('register-username');
+  const regPassIn   = document.getElementById('register-password');
+  const regPass2In  = document.getElementById('register-password2');
+  const regBtn      = document.getElementById('register-btn');
+
+  function switchTab(tab) {
+    showError('');
+    const isLogin = tab === 'login';
+    tabLogin.classList.toggle('active', isLogin);
+    tabRegister.classList.toggle('active', !isLogin);
+    loginForm.classList.toggle('hidden', !isLogin);
+    registerForm.classList.toggle('hidden', isLogin);
+  }
+
+  tabLogin.addEventListener('click', () => switchTab('login'));
+  tabRegister.addEventListener('click', () => switchTab('register'));
 
   function setLoading(isLoading) {
     loadingEl.style.display = isLoading ? 'block' : 'none';
@@ -27,34 +53,53 @@
   async function finishLogin(username) {
     AuthService.setCurrentUsername(username);
     await DataService.loadFromServer(username);
+
+    const profileDone = await AuthService.hasProfile(username);
+    if (!profileDone) {
+      // ผู้เล่นใหม่ (หรือผู้เล่นเก่าที่ยังไม่เคยกรอก) — ต้องสร้างตัวละครก่อน
+      screen.style.display = 'none';
+      if (typeof window.showCharacterScreen === 'function') {
+        window.showCharacterScreen(username);
+      }
+      return;
+    }
+
     screen.style.display = 'none';
     if (typeof window.onLoginSuccess === 'function') {
       window.onLoginSuccess(username);
     }
   }
 
-  loginBtn.addEventListener('click', async () => {
+  loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
     showError('');
     setLoading(true);
-    const result = await AuthService.login(userIn.value.trim(), passIn.value);
+    const result = await AuthService.login(loginUserIn.value.trim(), loginPassIn.value);
     setLoading(false);
     if (!result.ok) {
       showError(result.error);
       return;
     }
-    await finishLogin(userIn.value.trim());
+    await finishLogin(loginUserIn.value.trim());
   });
 
-  regBtn.addEventListener('click', async () => {
+  registerForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
     showError('');
+
+    if (regPassIn.value !== regPass2In.value) {
+      showError('รหัสผ่านยืนยันไม่ตรงกัน');
+      return;
+    }
+
     setLoading(true);
-    const result = await AuthService.register(userIn.value.trim(), passIn.value);
+    const result = await AuthService.register(regUserIn.value.trim(), regPassIn.value);
     setLoading(false);
     if (!result.ok) {
       showError(result.error);
       return;
     }
-    await finishLogin(userIn.value.trim());
+    await finishLogin(regUserIn.value.trim());
   });
 
   // ── auto-login ถ้ามี session เดิมในเครื่อง ──

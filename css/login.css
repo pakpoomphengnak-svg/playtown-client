@@ -2,7 +2,7 @@
 #login-screen {
   position: fixed;
   inset: 0;
-  background: linear-gradient(135deg, #1a1a2e, #16213e);
+  background: url('../assets/playtown/background.png') center center / cover no-repeat;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -32,6 +32,37 @@
   color: rgba(255,255,255,0.5);
   font-size: 13px;
   margin-bottom: 24px;
+}
+
+/* ── แท็บสลับ เข้าสู่ระบบ / สมัครสมาชิก ── */
+#auth-tabs {
+  display: flex;
+  margin-bottom: 20px;
+  border-radius: 8px;
+  background: rgba(0,0,0,0.25);
+  padding: 4px;
+}
+
+.auth-tab {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  background: transparent;
+  color: rgba(255,255,255,0.5);
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.auth-tab.active {
+  background: #4f9dff;
+  color: #fff;
+}
+
+.auth-form.hidden {
+  display: none;
 }
 
 #login-box input {
@@ -65,10 +96,8 @@
 }
 
 #register-btn {
-  background: transparent;
-  color: #4f9dff;
-  border: 1px solid #4f9dff !important;
-  margin-top: 8px;
+  background: #4f9dff;
+  color: #fff;
 }
 
 #login-error {
@@ -79,6 +108,125 @@
 }
 
 #login-loading {
+  color: rgba(255,255,255,0.6);
+  font-size: 13px;
+  margin-top: 10px;
+  display: none;
+}
+
+/* ── หน้าสร้างตัวละคร ── */
+#character-screen {
+  position: fixed;
+  inset: 0;
+  background: url('../assets/playtown/background.png') center center / cover no-repeat;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  font-family: sans-serif;
+}
+
+#character-box {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 16px;
+  padding: 32px 28px;
+  width: 88%;
+  max-width: 360px;
+  text-align: center;
+  backdrop-filter: blur(8px);
+}
+
+#character-box h1 {
+  color: #fff;
+  font-size: 24px;
+  margin-bottom: 4px;
+  letter-spacing: 1px;
+}
+
+#character-box p.subtitle {
+  color: rgba(255,255,255,0.5);
+  font-size: 13px;
+  margin-bottom: 20px;
+}
+
+#character-box input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.2);
+  background: rgba(0,0,0,0.3);
+  color: #fff;
+  font-size: 15px;
+}
+
+#character-box input::placeholder { color: rgba(255,255,255,0.35); }
+
+.field-label {
+  display: block;
+  text-align: left;
+  color: rgba(255,255,255,0.55);
+  font-size: 12px;
+  margin: 4px 0 6px;
+}
+
+#birthdate-row {
+  display: flex;
+  gap: 8px;
+}
+
+#birthdate-row input {
+  text-align: center;
+}
+
+#gender-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.gender-btn {
+  flex: 1;
+  padding: 12px 6px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.2);
+  background: rgba(0,0,0,0.3);
+  color: rgba(255,255,255,0.7);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.gender-btn.selected {
+  background: #4f9dff;
+  border-color: #4f9dff !important;
+  color: #fff;
+}
+
+#character-submit-btn {
+  width: 100%;
+  padding: 12px;
+  margin-top: 6px;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  background: #4f9dff;
+  color: #fff;
+}
+
+#character-error {
+  color: #ff6b6b;
+  font-size: 13px;
+  margin-top: 10px;
+  min-height: 16px;
+}
+
+#character-loading {
   color: rgba(255,255,255,0.6);
   font-size: 13px;
   margin-top: 10px;
