@@ -39,7 +39,7 @@ const DataService = {
       hygiene: 100,
       brain:   100,
       stamina: 100,
-      money:   0,
+      money:   1000,
     };
   },
 

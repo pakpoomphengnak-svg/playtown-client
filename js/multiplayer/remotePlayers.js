@@ -1,12 +1,17 @@
 // ─────────────────────────────────────────────
 // client/js/multiplayer/remotePlayers.js
 // จัดการ mesh ของผู้เล่นคนอื่นในฉาก (เพิ่ม/ลบ/เลื่อนตำแหน่ง)
-// ต้องโหลดหลัง core/scene.js (ใช้ตัวแปร scene) และก่อน game.js
+// ใช้โมเดล + อนิเมชั่นตัวเดียวกับผู้เล่น local (createCharacterModel / animateCharacterParts)
+// ต้องโหลดหลัง core/scene.js (ใช้ตัวแปร scene) และ character/characterModel.js, character/characterAnim.js
+// และก่อน game.js
 // ─────────────────────────────────────────────
 
 const RemotePlayers = (() => {
 
-  // id (socket id) → { group, nameSprite, targetX, targetZ, targetRotY }
+  // ระยะที่ถือว่า "กำลังเดิน" ต่อวินาที (กันสั่นตอนหยุดนิ่งแต่ตัวเลขขยับนิดหน่อยจาก network jitter)
+  const MOVE_THRESHOLD = 0.05;
+
+  // id (socket id) → { group, parts, animState, nameSprite, targetX, targetZ, targetRotY, lastX, lastZ }
   const _players = {};
 
   // ── สร้างชื่อลอยเหนือหัว (sprite ที่หันหน้าเข้ากล้องเสมอ) ──
@@ -30,49 +35,39 @@ const RemotePlayers = (() => {
     return sprite;
   }
 
-  // ── โมเดลง่ายๆ สำหรับผู้เล่นคนอื่น (capsule ตัวเดียว ไม่ต้องเต็มรูปแบบเหมือน charGroup) ──
-  function _makeRemoteModel() {
-    const group = new THREE.Group();
-
-    const body = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.25, 0.25, 0.9, 12),
-      new THREE.MeshLambertMaterial({ color: 0xd98c4a })
-    );
-    body.position.y = 1.02;
-    body.castShadow = true;
-    group.add(body);
-
-    const head = new THREE.Mesh(
-      new THREE.SphereGeometry(0.22, 12, 8),
-      new THREE.MeshLambertMaterial({ color: 0xf5c5a3 })
-    );
-    head.position.y = 1.6;
-    head.castShadow = true;
-    group.add(head);
-
-    return group;
-  }
-
-  // ── เพิ่มผู้เล่นใหม่เข้าฉาก ──
+  // ── เพิ่มผู้เล่นใหม่เข้าฉาก (ใช้โมเดลตัวละครเดียวกับผู้เล่น local) ──
   function add(player) {
     if (_players[player.id]) return; // มีอยู่แล้ว ไม่ต้องสร้างซ้ำ
 
-    const group = _makeRemoteModel();
+    const character = (typeof createCharacterModel === 'function')
+      ? createCharacterModel()
+      : null;
+
+    // fallback กันพังถ้า characterModel.js ยังไม่โหลด (ไม่ควรเกิดขึ้นถ้าลำดับ script ถูก)
+    const group = character ? character.group : new THREE.Group();
+
     const nameSprite = _makeNameSprite(player.name || 'Player');
     group.add(nameSprite);
 
     const y = (typeof getGroundY === 'function') ? getGroundY(player.x, player.z) : 0;
-    group.position.set(player.x, y, player.z);
+    const footOffset = (typeof charFootOffset === 'number') ? charFootOffset : 0;
+    group.position.set(player.x, y + footOffset, player.z);
     group.rotation.y = player.rotY || 0;
 
     scene.add(group);
 
     _players[player.id] = {
       group,
+      parts: character
+        ? { body: character.body, armL: character.armL, armR: character.armR, legL: character.legL, legR: character.legR }
+        : {},
+      animState: { walkCycle: 0, attackTimer: 0 },
       nameSprite,
       targetX: player.x,
       targetZ: player.z,
       targetRotY: player.rotY || 0,
+      lastX: player.x,
+      lastZ: player.z,
     };
   }
 
@@ -88,6 +83,10 @@ const RemotePlayers = (() => {
     entry.targetX = data.x;
     entry.targetZ = data.z;
     entry.targetRotY = data.rotY || 0;
+    if (typeof data.isSprinting === 'boolean') entry.isSprinting = data.isSprinting;
+    if (data.isAttacking && typeof entry.animState.attackTimer === 'number') {
+      entry.animState.attackTimer = (typeof ATTACK_DURATION !== 'undefined') ? ATTACK_DURATION : 0.8;
+    }
   }
 
   // ── ลบผู้เล่นออกจากฉาก ──
@@ -98,7 +97,7 @@ const RemotePlayers = (() => {
     delete _players[id];
   }
 
-  // ── เรียกทุก frame จาก game.js: เลื่อน mesh เข้าหาตำแหน่งล่าสุดแบบนุ่มๆ ──
+  // ── เรียกทุก frame จาก game.js: เลื่อน mesh เข้าหาตำแหน่งล่าสุดแบบนุ่มๆ + เล่นอนิเมชั่น ──
   function update(dt) {
     const lerpSpeed = Math.min(1, 10 * dt);
     for (const id in _players) {
@@ -108,14 +107,27 @@ const RemotePlayers = (() => {
       g.position.x += (entry.targetX - g.position.x) * lerpSpeed;
       g.position.z += (entry.targetZ - g.position.z) * lerpSpeed;
 
+      const footOffset = (typeof charFootOffset === 'number') ? charFootOffset : 0;
       if (typeof getGroundY === 'function') {
-        g.position.y = getGroundY(g.position.x, g.position.z);
+        g.position.y = getGroundY(g.position.x, g.position.z) + footOffset;
       }
 
       let diff = entry.targetRotY - g.rotation.y;
       while (diff >  Math.PI) diff -= Math.PI * 2;
       while (diff < -Math.PI) diff += Math.PI * 2;
       g.rotation.y += diff * lerpSpeed;
+
+      // ── เดาว่ากำลังเดินอยู่หรือไม่ จากความเร็วของตำแหน่งเป้าหมาย ──
+      const dx = entry.targetX - entry.lastX;
+      const dz = entry.targetZ - entry.lastZ;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+      const isMoving = dt > 0 && (dist / dt) > MOVE_THRESHOLD;
+      entry.lastX = entry.targetX;
+      entry.lastZ = entry.targetZ;
+
+      if (typeof animateCharacterParts === 'function' && entry.parts) {
+        animateCharacterParts(entry.parts, entry.animState, isMoving, !!entry.isSprinting, dt);
+      }
     }
   }
 

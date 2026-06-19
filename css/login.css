@@ -4,7 +4,7 @@
   inset: 0;
   width: 100%;
   height: 100%;
-  overflow: hidden;
+  overflow-y: auto;
   background: url('../assets/playtown/background.png') center center / cover no-repeat;
   display: flex;
   align-items: center;
@@ -12,17 +12,21 @@
   z-index: 9999;
   font-family: sans-serif;
   box-sizing: border-box;
+  padding: 16px;
 }
 
 #login-box {
   background: rgba(255,255,255,0.06);
   border: 1px solid rgba(255,255,255,0.15);
   border-radius: 16px;
-  padding: 32px 28px;
-  width: 88%;
-  max-width: 360px;
+  padding: 24px 20px;
+  width: 100%;
+  max-width: 420px;
   text-align: center;
   backdrop-filter: blur(8px);
+  box-sizing: border-box;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
 }
 
 #login-box h1 {
@@ -124,7 +128,7 @@
   inset: 0;
   width: 100%;
   height: 100%;
-  overflow: hidden;
+  overflow-y: auto;
   background: url('../assets/playtown/background.png') center center / cover no-repeat;
   display: flex;
   align-items: center;
@@ -132,17 +136,21 @@
   z-index: 9999;
   font-family: sans-serif;
   box-sizing: border-box;
+  padding: 16px;
 }
 
 #character-box {
   background: rgba(255,255,255,0.06);
   border: 1px solid rgba(255,255,255,0.15);
   border-radius: 16px;
-  padding: 32px 28px;
-  width: 88%;
-  max-width: 360px;
+  padding: 24px 20px;
+  width: 100%;
+  max-width: 420px;
   text-align: center;
   backdrop-filter: blur(8px);
+  box-sizing: border-box;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
 }
 
 #character-box h1 {

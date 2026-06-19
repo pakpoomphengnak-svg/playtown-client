@@ -48,9 +48,9 @@ const AuthService = (() => {
       stats: {
         name: username,
         hp: 100, food: 100, water: 100, hygiene: 100, brain: 100, stamina: 100,
-        money: 0,
+        money: 1000,
       },
-      position: { x: 110, z: -70 },
+      position: { x: 110, z: 70 },
       inventory: {},
       hotbar: {},
       garage: {},

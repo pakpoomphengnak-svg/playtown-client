@@ -78,9 +78,9 @@ const SocketClient = (() => {
   }
 
   // ── ส่งตำแหน่งไปยัง server ─────────────────
-  function sendPosition(x, z, rotY, isInVehicle = false, vehicleId = null) {
+  function sendPosition(x, z, rotY, isInVehicle = false, vehicleId = null, isSprinting = false, isAttacking = false) {
     if (!socket || !socket.connected) return;
-    socket.emit('updatePosition', { x, z, rotY, isInVehicle, vehicleId });
+    socket.emit('updatePosition', { x, z, rotY, isInVehicle, vehicleId, isSprinting, isAttacking });
   }
 
   // ── ผูก event handlers ─────────────────────

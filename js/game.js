@@ -49,6 +49,10 @@ let elapsedTime = 0;
 let _posSendTimer = 0;
 const POS_SEND_INTERVAL = 0.1; // วินาที (10 ครั้ง/วิ)
 
+// ── Multiplayer: บอกคนอื่นว่าเรากำลังโจมตี (ส่งครั้งเดียวตอนเริ่มท่า ไม่ส่งซ้ำทุกเฟรม) ──
+let _attackToSend = false;
+document.addEventListener('player-attack', () => { _attackToSend = true; });
+
 function animate() {
   requestAnimationFrame(animate);
   const dt = Math.min(clock.getDelta(), 0.05);
@@ -153,8 +157,11 @@ function animate() {
         Player.z,
         Player.rotY,
         isInVehicle,
-        activeVehicleForPos ? activeVehicleForPos.mesh.uuid : null
+        activeVehicleForPos ? activeVehicleForPos.mesh.uuid : null,
+        actualSprinting,
+        _attackToSend
       );
+      _attackToSend = false; // ส่งครั้งเดียวพอ ไม่ต้องส่งซ้ำทุก tick
     }
   }
 
