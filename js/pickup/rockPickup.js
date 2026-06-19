@@ -21,7 +21,8 @@ let nearestRockNode = null;
 // สถานะกำลังเก็บ
 let collectingRockNode = null;
 let rockCollectStartTime = 0;
-window.isCollectingRock = false;
+// ใช้ window.isCollecting ร่วมกับ apple/grape/log เพื่อล็อกการเดิน
+if (typeof window.isCollecting === 'undefined') window.isCollecting = false;
 
 (function initRockPickups() {
   if (typeof miningRockOres === 'undefined' || miningRockOres.length === 0) return;
@@ -146,7 +147,7 @@ function showRockLoading(visible) {
 
 // ── กดปุ่มเริ่มเก็บ ──
 function startCollectingRock() {
-  if (!nearestRockNode || nearestRockNode.collected || window.isCollectingRock) return;
+  if (!nearestRockNode || nearestRockNode.collected || window.isCollecting) return;
 
   // hygiene = 0 → เก็บแร่ไม่ได้
   if (typeof Player !== 'undefined' && typeof Player.canPickup === 'function' && !Player.canPickup()) {
@@ -156,7 +157,7 @@ function startCollectingRock() {
     return;
   }
 
-  window.isCollectingRock = true;
+  window.isCollecting = true;
   collectingRockNode    = nearestRockNode;
   rockCollectStartTime  = getRockNow();
   showRockBtn(false);
@@ -165,7 +166,7 @@ function startCollectingRock() {
 
 // ── ยกเลิกการเก็บ (เดินออก) ──
 function cancelCollectingRock() {
-  window.isCollectingRock = false;
+  window.isCollecting = false;
   collectingRockNode = null;
   showRockLoading(false);
 }
@@ -194,7 +195,7 @@ function finishCollectingRock() {
   const got = Math.floor(Math.random() * 10) + 1;
   Inventory.addItem('rock', got);
 
-  window.isCollectingRock = false;
+  window.isCollecting = false;
   collectingRockNode = null;
   nearestRockNode    = null;
 
@@ -234,13 +235,13 @@ function updateRockPickups(dt, elapsed) {
 
   // อยู่บนรถ → ห้ามเก็บแร่ (ยกเลิกที่ทำค้างอยู่ + ซ่อนปุ่มเสมอ)
   if (typeof isInVehicle !== 'undefined' && isInVehicle) {
-    if (window.isCollectingRock && collectingRockNode) cancelCollectingRock();
+    if (window.isCollecting && collectingRockNode) cancelCollectingRock();
     showRockBtn(false);
     return;
   }
 
   // กำลังรอเก็บอยู่
-  if (window.isCollectingRock) {
+  if (window.isCollecting) {
     if (!collectingRockNode) return;
 
     if (!collectingRockNode || collectingRockNode.collected) {

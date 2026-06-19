@@ -4,7 +4,7 @@
 // ใช้ scene / colliders / groundMeshes ที่ประกาศใน world/ground.js
 // ─────────────────────────────────────────────
 
-const MINING_FARM_CENTER = { x: 160, z: -180 };
+const MINING_FARM_CENTER = { x: -150, z: 150 };
 const MINING_FARM_SIZE    = 20; // ขนาดเท่าฟาร์มอื่นๆ
 
 // ตำแหน่งหินแร่ทั้งหมด (world space) — ให้ระบบอื่นอ้างอิงในอนาคต

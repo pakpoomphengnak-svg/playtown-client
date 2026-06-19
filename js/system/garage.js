@@ -24,6 +24,10 @@ const GARAGE_LOCATIONS = [
     { retrieve: { x: 170, z: -40 }, store: { x: 190, z: -40 } },
     // grapeFarm
     { retrieve: { x: 123, z: -121 }, store: { x: 123, z: -138 } },
+    // forestFarm
+    { retrieve: { x: -77, z: -55 }, store: { x: -63, z: -55 } },
+    // forestFarm
+    { retrieve: { x: -143, z: 130 }, store: { x: -157, z: 130 } },
 ];
 // ─────────────────────────────────────────────
 // END CONFIG

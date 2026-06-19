@@ -21,7 +21,8 @@ let nearestLogTree = null;
 // สถานะกำลังเก็บ
 let collectingLogTree = null;
 let logCollectStartTime = 0;
-window.isCollectingLog = false;
+// ใช้ window.isCollecting ร่วมกับ apple/grape/rock เพื่อล็อกการเดิน
+if (typeof window.isCollecting === 'undefined') window.isCollecting = false;
 
 (function initLogPickups() {
   if (typeof forestTreeLogs === 'undefined' || forestTreeLogs.length === 0) return;
@@ -146,7 +147,7 @@ function showLogLoading(visible) {
 
 // ── กดปุ่มเริ่มเก็บ ──
 function startCollectingLog() {
-  if (!nearestLogTree || nearestLogTree.collected || window.isCollectingLog) return;
+  if (!nearestLogTree || nearestLogTree.collected || window.isCollecting) return;
 
   // hygiene = 0 → เก็บไม้ไม่ได้
   if (typeof Player !== 'undefined' && typeof Player.canPickup === 'function' && !Player.canPickup()) {
@@ -156,7 +157,7 @@ function startCollectingLog() {
     return;
   }
 
-  window.isCollectingLog = true;
+  window.isCollecting = true;
   collectingLogTree   = nearestLogTree;
   logCollectStartTime = getLogNow();
   showLogBtn(false);
@@ -165,7 +166,7 @@ function startCollectingLog() {
 
 // ── ยกเลิกการเก็บ (เดินออก) ──
 function cancelCollectingLog() {
-  window.isCollectingLog = false;
+  window.isCollecting = false;
   collectingLogTree = null;
   showLogLoading(false);
 }
@@ -194,7 +195,7 @@ function finishCollectingLog() {
   const got = Math.floor(Math.random() * 10) + 1;
   Inventory.addItem('log', got);
 
-  window.isCollectingLog = false;
+  window.isCollecting = false;
   collectingLogTree = null;
   nearestLogTree    = null;
 
@@ -234,13 +235,13 @@ function updateLogPickups(dt, elapsed) {
 
   // อยู่บนรถ → ห้ามเก็บไม้ (ยกเลิกที่ทำค้างอยู่ + ซ่อนปุ่มเสมอ)
   if (typeof isInVehicle !== 'undefined' && isInVehicle) {
-    if (window.isCollectingLog && collectingLogTree) cancelCollectingLog();
+    if (window.isCollecting && collectingLogTree) cancelCollectingLog();
     showLogBtn(false);
     return;
   }
 
   // กำลังรอเก็บอยู่
-  if (window.isCollectingLog) {
+  if (window.isCollecting) {
     if (!collectingLogTree) return;
 
     if (!collectingLogTree || collectingLogTree.collected) {

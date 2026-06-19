@@ -14,6 +14,14 @@
 const SAFE_POS           = { x: REBEL_CENTER.x, z: REBEL_CENTER.z };
 const SAFE_INTERACT_RADIUS = 2;   // ระยะที่ปุ่มโผล่ (หน่วย world)
 
+// ── ไอเทมที่ห้ามเก็บลงตู้เซฟ ───────────────────
+// เติม itemId เข้าลิสต์นี้เพื่อห้ามไม่ให้ย้ายไอเทมนั้นเข้าตู้เซฟ
+// (ไอเทมที่มี meta เฉพาะตัว เช่น กุญแจรถ จะถูกห้ามอยู่แล้วโดยอัตโนมัติ ไม่ต้องเพิ่มในนี้)
+const SAFE_BLOCKED_ITEMS = [
+  'car_key',
+  'safe_key',
+];
+
 // ── State ──────────────────────────────────────
 // items เป็น object map: { [itemId]: qty }  — ไม่จำกัด slot ไม่จำกัดจำนวน
 const SafeBox = {
@@ -450,6 +458,13 @@ SafeBox.load();
     return { name: id, emoji: '📦', maxStack: 99 };
   }
 
+  // ไอเทมนี้ห้ามเก็บลงตู้เซฟหรือไม่ (เช็คจาก SAFE_BLOCKED_ITEMS หรือ def.noSafeStore)
+  function isSafeBlocked(itemId, def) {
+    if (SAFE_BLOCKED_ITEMS.includes(itemId)) return true;
+    if (def && def.noSafeStore) return true;
+    return false;
+  }
+
   function makeSlotEl(def, name, qty, highlight) {
     const slot = document.createElement('div');
     slot.className = 'safe-cell' + (highlight ? ' safe-cell-in' : '') + (def ? '' : ' disabled');
@@ -516,8 +531,8 @@ SafeBox.load();
       const slot = makeSlotEl(def, def.name || entry.id, entry.count || 1, false);
       slot.title = `คลิกเพื่อย้ายเข้าตู้เซฟ`;
       slot.addEventListener('click', () => {
-        if (entry.meta || def.noSafeStore) {
-          // ไอเทมที่มี meta เฉพาะตัว (กุญแจรถ) หรือ noSafeStore (กุญแจตู้เซฟ) → ห้ามเก็บลงตู้เซฟ
+        if (entry.meta || isSafeBlocked(entry.id, def)) {
+          // ไอเทมที่มี meta เฉพาะตัว (กุญแจรถ) หรืออยู่ใน SAFE_BLOCKED_ITEMS → ห้ามเก็บลงตู้เซฟ
           if (typeof Notification !== 'undefined')
             Notification.show('❌ ไอเทมนี้ย้ายเข้าตู้เซฟไม่ได้', 'error');
           return;
@@ -535,8 +550,8 @@ SafeBox.load();
 
     const def = itemDef(entry.id);
 
-    // ไอเทมที่มี meta เฉพาะตัว (กุญแจรถ) หรือ noSafeStore (กุญแจตู้เซฟ) → ห้ามเก็บลงตู้เซฟ
-    if (entry.meta || def.noSafeStore) {
+    // ไอเทมที่มี meta เฉพาะตัว (กุญแจรถ) หรืออยู่ใน SAFE_BLOCKED_ITEMS → ห้ามเก็บลงตู้เซฟ
+    if (entry.meta || isSafeBlocked(entry.id, def)) {
       if (typeof Notification !== 'undefined')
         Notification.show('❌ ไอเทมนี้ย้ายเข้าตู้เซฟไม่ได้', 'error');
       return;

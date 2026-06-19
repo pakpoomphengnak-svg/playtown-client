@@ -4,7 +4,7 @@
 // ใช้ scene / colliders / groundMeshes ที่ประกาศใน world/ground.js
 // ─────────────────────────────────────────────
 
-const FOREST_FARM_CENTER = { x: 160, z: -130 };
+const FOREST_FARM_CENTER = { x: -70, z: -70 };
 const FOREST_FARM_SIZE    = 20; // ขนาดเท่าฟาร์มแอปเปิ้ล/องุ่น
 
 // ตำแหน่งต้นไม้ทั้งหมด (world space) — ให้ระบบอื่นอ้างอิงในอนาคต

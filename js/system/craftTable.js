@@ -14,7 +14,8 @@
 //   id:          'safe_key',          // itemId ที่จะได้รับเมื่อคราฟสำเร็จ (ต้องมีใน ITEM_DEFS)
 //   resultQty:   1,                   // จำนวนที่ได้ต่อครั้ง
 //   materials:   [{ id: 'apple_packaged', qty: 5 }, { id: 'spray', qty: 10 }],
-//   successRate: 0.8,                 // โอกาสสำเร็จ 0..1
+//   successRate: 80,                  // โอกาสสำเร็จ เป็น % จริง (0-100)
+//   craftTime:   3,                   // เวลาที่ใช้คราฟ 1 ครั้ง (วินาที) — ไม่ใส่ = ใช้ค่า default ด้านล่าง
 // }
 //
 // ต้องโหลดหลัง: building/rebel.js, system/inventory.js, system/notification.js
@@ -23,6 +24,7 @@
 
 const CRAFT_POS              = { x: REBEL_CENTER.x + (-5.0), z: REBEL_CENTER.z + (-3.0) };
 const CRAFT_INTERACT_RADIUS  = 3.0;   // ระยะที่ปุ่มโผล่ (หน่วย world)
+const CRAFT_DEFAULT_TIME     = 3.0;   // เวลาคราฟ default (วินาที) ถ้าสูตรไม่ได้กำหนด craftTime ไว้
 
 // ── สูตรคราฟ แบ่งตามหมวดหมู่ — หมวดไหนไม่มีไอเทมปล่อย array ว่างไว้ก่อน ──
 const CRAFT_RECIPES = {
@@ -31,12 +33,16 @@ const CRAFT_RECIPES = {
       id:          'safe_key',
       resultQty:   1,
       materials:   [
-        { id: 'apple_packaged', qty: 5 },
-        { id: 'spray',          qty: 10 },
+        { id: 'log', qty: 30 },
+        { id: 'woodplank',          qty: 10 },
+        { id: 'ironingot', qty: 5 },
+        { id: 'goldingot',          qty: 3 },
+        { id: 'diamond', qty: 1},
         { id: 'cash',           qty: 1000 },
         { id: 'dirty_cash',     qty: 0 },
       ],
-      successRate: 0.8,
+      successRate: 80,    // โอกาสสำเร็จ 80%
+      craftTime:   5,     // คราฟ 1 ครั้งใช้เวลา 5 วินาที
     },
   ],
   ซัพพลาย: [
@@ -145,7 +151,7 @@ const CRAFT_CATEGORIES = ['ทั่วไป', 'ซัพพลาย', 'อา
       userSelect: 'none', WebkitUserSelect: 'none',
       transition: 'background 0.12s, color 0.12s',
     });
-    btn.addEventListener('click', () => setActiveCategory(cat));
+    btn.addEventListener('click', () => { if (!isCrafting) setActiveCategory(cat); });
     return btn;
   }
 
@@ -260,8 +266,20 @@ const CRAFT_CATEGORIES = ['ทั่วไป', 'ซัพพลาย', 'อา
     }
     .craft-success-ring-bg   { fill: none; stroke: rgba(255,255,255,0.07); stroke-width: 6; }
     .craft-success-ring-fill { fill: none; stroke-width: 6; stroke-linecap: round; transition: stroke-dashoffset 0.4s ease; }
+    .craft-success-ring-fill.crafting { transition: stroke-dashoffset 0.08s linear; }
     .craft-success-pct { font-size: 13px; font-weight: 800; color: #ffa726; position: relative; z-index: 1; }
     .craft-success-label { font-size: 8px; color: #888; text-align: center; letter-spacing: 0.04em; text-transform: uppercase; }
+
+    .craft-do-btn.crafting {
+      background: linear-gradient(135deg, #555, #333);
+      color: #ccc; cursor: default; box-shadow: none;
+    }
+    .craft-cancel-btn {
+      background: linear-gradient(135deg, #ef5350, #b71c1c) !important;
+      color: #fff !important; cursor: pointer !important;
+      box-shadow: 0 4px 16px rgba(239,83,80,0.3) !important;
+    }
+    .craft-cancel-btn:active { transform: scale(0.97); }
 
     /* ═══ ขวา: วัตถุดิบ + จำนวน + ปุ่มคราฟ ═══ */
     #craft-right-col {
@@ -440,6 +458,16 @@ const CRAFT_CATEGORIES = ['ทั่วไป', 'ซัพพลาย', 'อา
     return wrap;
   }
 
+  // ── พื้นที่ stack ที่เหลือสำหรับไอเทมผลลัพธ์ (กี่ "ชิ้น" ที่ยังเก็บเพิ่มได้) ──
+  // เช่น safe_key มี maxStack 10 ถ้ามีอยู่แล้ว 10/10 → เหลือ 0 (คราฟต่อไม่ได้)
+  function resultStackSpace(recipe) {
+    const def = itemDef(recipe.id);
+    const maxStack = def.maxStack || 99;
+    const have = (typeof Inventory !== 'undefined' && typeof Inventory.countItem === 'function')
+      ? Inventory.countItem(recipe.id) : 0;
+    return Math.max(0, maxStack - have);
+  }
+
   function craftableBatches(recipe) {
     if (!recipe) return 0;
     let max = Infinity;
@@ -449,11 +477,38 @@ const CRAFT_CATEGORIES = ['ทั่วไป', 'ซัพพลาย', 'อา
       const b = Math.floor(have / mat.qty);
       if (b < max) max = b;
     });
-    return max === Infinity ? 0 : max;
+    if (max === Infinity) return 0;
+
+    // ── เช็คพื้นที่ stack ของไอเทมผลลัพธ์ด้วย ──
+    // resultQty ต่อครั้ง, ถ้าเหลือพื้นที่ไม่พอสำหรับแม้แต่ 1 ครั้ง → คราฟไม่ได้เลย
+    const space = resultStackSpace(recipe);
+    const byStack = recipe.resultQty > 0 ? Math.floor(space / recipe.resultQty) : Infinity;
+    if (byStack < max) max = byStack;
+
+    return max;
+  }
+
+  // ── ของในกระเป๋าเต็ม stack จนคราฟต่อไม่ได้หรือไม่ (แยกจากกรณีวัตถุดิบไม่พอ) ──
+  function isStackFull(recipe) {
+    if (!recipe) return false;
+    const space = resultStackSpace(recipe);
+    return recipe.resultQty > 0 && space < recipe.resultQty;
   }
 
   // ── State ─────────────────────────────────────
-  let craftQty = 1;
+  let craftQty    = 1;
+  let ringRefs    = null;   // ref ของ ring กลาง (เซ็ตใน renderCenter) ใช้ animate ตอนคราฟ
+  let isCrafting  = false;  // กำลังคราฟอยู่หรือไม่ (ใช้ block การกดซ้ำ/เปลี่ยนสูตร)
+
+  // ── Craft Session State ───────────────────────
+  // คราฟทีละชิ้น: หักวัตถุดิบทีละครั้งตอนเริ่มแต่ละชิ้น ไม่ใช่หักรวดเดียวทั้งแบทช์
+  // craftSession เก็บ state ของชิ้นที่กำลังคราฟอยู่ ณ ขณะนี้ เพื่อให้ยกเลิก/คืนของได้ถูกต้อง
+  let craftSession = null;
+  // craftSession = {
+  //   recipe, totalBatches, doneCount, successCount,
+  //   cancelled: false,
+  //   currentMaterialsDeducted: bool, // วัตถุดิบของ "ชิ้นปัจจุบัน" ถูกหักไปแล้วหรือยัง (ใช้ตอนคืนของ)
+  // }
 
   // ── Render: ซ้าย — รายการไอเทม ───────────────
   function renderItemList() {
@@ -488,14 +543,14 @@ const CRAFT_CATEGORIES = ['ทั่วไป', 'ซัพพลาย', 'อา
 
       const sub = document.createElement('div');
       sub.className = 'craft-item-row-sub ' + (canCraft ? 'craft-item-row-cancraft' : 'craft-item-row-nocraft');
-      sub.textContent = canCraft ? '✓ คราฟได้' : '✗ วัตถุดิบไม่พอ';
+      sub.textContent = canCraft ? '✓ คราฟได้' : (isStackFull(recipe) ? '✗ ไม่สามารถคราฟได้' : '✗ วัตถุดิบไม่พอ');
 
       info.appendChild(name);
       info.appendChild(sub);
       row.appendChild(ico);
       row.appendChild(info);
 
-      row.addEventListener('click', () => selectRecipe(recipe));
+      row.addEventListener('click', () => { if (!isCrafting) selectRecipe(recipe); });
       itemListCol.appendChild(row);
     });
   }
@@ -503,6 +558,7 @@ const CRAFT_CATEGORIES = ['ทั่วไป', 'ซัพพลาย', 'อา
   // ── Render: กลาง — ไอเทมที่เลือก + โอกาสสำเร็จ ──
   function renderCenter() {
     centerCol.innerHTML = '';
+    ringRefs = null;
 
     if (!selectedRecipe) {
       const empty = document.createElement('div');
@@ -513,7 +569,7 @@ const CRAFT_CATEGORIES = ['ทั่วไป', 'ซัพพลาย', 'อา
     }
 
     const def = itemDef(selectedRecipe.id);
-    const pct = Math.round(selectedRecipe.successRate * 100);
+    const pct = Math.round(selectedRecipe.successRate);   // successRate เป็น % จริงแล้ว (0-100)
     const R   = 28; // radius ของ ring
     const C   = 2 * Math.PI * R;
 
@@ -533,7 +589,7 @@ const CRAFT_CATEGORIES = ['ทั่วไป', 'ซัพพลาย', 'อา
     qtyHint.textContent = `ได้รับ ${selectedRecipe.resultQty} ชิ้น/ครั้ง`;
     centerCol.appendChild(qtyHint);
 
-    // ─ วงกลมโอกาสสำเร็จ ─
+    // ─ วงกลม: โอกาสสำเร็จ (ปกติ) / เวลาคราฟ (ระหว่างคราฟ) ─
     const ring = document.createElement('div');
     ring.className = 'craft-success-ring';
 
@@ -552,7 +608,7 @@ const CRAFT_CATEGORIES = ['ทั่วไป', 'ซัพพลาย', 'อา
     const color = pct >= 80 ? '#66bb6a' : pct >= 50 ? '#ffa726' : '#ef5350';
     fillCircle.setAttribute('stroke', color);
     fillCircle.setAttribute('stroke-dasharray', String(C));
-    fillCircle.setAttribute('stroke-dashoffset', String(C * (1 - selectedRecipe.successRate)));
+    fillCircle.setAttribute('stroke-dashoffset', String(C * (1 - pct / 100)));
 
     svg.appendChild(bgCircle);
     svg.appendChild(fillCircle);
@@ -570,6 +626,13 @@ const CRAFT_CATEGORIES = ['ทั่วไป', 'ซัพพลาย', 'อา
     rateLabel.className = 'craft-success-label';
     rateLabel.textContent = 'โอกาสสำเร็จ';
     centerCol.appendChild(rateLabel);
+
+    // ─ เก็บ ref ไว้ให้ฟังก์ชันคราฟ animate ตอนกำลังคราฟ ─
+    ringRefs = {
+      fillCircle, pctLabel, rateLabel, C,
+      successColor: color,
+      successPct:   pct,
+    };
   }
 
   // ── Render: ขวา — วัตถุดิบ + จำนวน + ปุ่ม ───
@@ -680,7 +743,7 @@ const CRAFT_CATEGORIES = ['ทั่วไป', 'ซัพพลาย', 'อา
     qtyRow.className = 'craft-qty-row';
 
     const minusBtn = document.createElement('button');
-    minusBtn.className = 'craft-qty-btn' + (craftQty <= 1 ? ' disabled' : '');
+    minusBtn.className = 'craft-qty-btn' + (craftQty <= 1 || isCrafting ? ' disabled' : '');
     minusBtn.textContent = '−';
 
     const qtyDisplay = document.createElement('div');
@@ -688,7 +751,7 @@ const CRAFT_CATEGORIES = ['ทั่วไป', 'ซัพพลาย', 'อา
     qtyDisplay.textContent = String(craftQty);
 
     const plusBtn = document.createElement('button');
-    plusBtn.className = 'craft-qty-btn' + (craftQty >= maxBatches || maxBatches === 0 ? ' disabled' : '');
+    plusBtn.className = 'craft-qty-btn' + (craftQty >= maxBatches || maxBatches === 0 || isCrafting ? ' disabled' : '');
     plusBtn.textContent = '+';
 
     qtyRow.appendChild(minusBtn);
@@ -698,21 +761,34 @@ const CRAFT_CATEGORIES = ['ทั่วไป', 'ซัพพลาย', 'อา
     actionGroup.appendChild(qtyRow);
 
     minusBtn.addEventListener('click', () => {
-      if (craftQty > 1) { craftQty--; renderRight(); }
+      if (!isCrafting && craftQty > 1) { craftQty--; renderRight(); }
     });
     plusBtn.addEventListener('click', () => {
-      if (craftQty < maxBatches) { craftQty++; renderRight(); }
+      if (!isCrafting && craftQty < maxBatches) { craftQty++; renderRight(); }
     });
 
     // ─ ปุ่มคราฟ ─
-    const canCraft = maxBatches > 0 && craftQty >= 1;
+    const canCraft = maxBatches > 0 && craftQty >= 1 && !isCrafting;
     const craftBtn = document.createElement('button');
-    craftBtn.className = 'craft-do-btn' + (canCraft ? '' : ' disabled');
-    craftBtn.textContent = canCraft ? `🛠️ คราฟ ×${craftQty}` : '❌ วัตถุดิบไม่พอ';
+    craftBtn.className = 'craft-do-btn' + (isCrafting ? ' crafting' : (canCraft ? '' : ' disabled'));
+    craftBtn.textContent = isCrafting
+      ? `⏳ กำลังคราฟ... (${craftSession ? craftSession.doneCount : 0}/${craftSession ? craftSession.totalBatches : craftQty})`
+      : (maxBatches > 0 ? `🛠️ คราฟ ×${craftQty}` : (isStackFull(selectedRecipe) ? '❌ ไม่สามารถคราฟได้' : '❌ วัตถุดิบไม่พอ'));
     craftBtn.addEventListener('click', () => {
       if (canCraft) doCraft(selectedRecipe, craftQty);
     });
     actionGroup.appendChild(craftBtn);
+
+    // ─ ปุ่มยกเลิก (โผล่เฉพาะตอนกำลังคราฟ) ─
+    if (isCrafting) {
+      const cancelBtn = document.createElement('button');
+      cancelBtn.className = 'craft-do-btn craft-cancel-btn';
+      cancelBtn.textContent = '✕ ยกเลิกการคราฟ';
+      cancelBtn.addEventListener('click', () => {
+        cancelCraftSession();
+      });
+      actionGroup.appendChild(cancelBtn);
+    }
 
     rightCol.appendChild(actionGroup);
   }
@@ -746,62 +822,186 @@ const CRAFT_CATEGORIES = ['ทั่วไป', 'ซัพพลาย', 'อา
   }
 
   // ── doCraft ───────────────────────────────────
+  // คราฟทีละชิ้น: เริ่มชิ้นที่ 1 → หักวัตถุดิบของชิ้นนั้น → รอ craftTime → ตัดสินผล
+  // → ถ้ายังไม่ครบ batches และยังไม่ถูกยกเลิก → เริ่มชิ้นถัดไปอัตโนมัติ
   function doCraft(recipe, batches = 1) {
+    if (isCrafting) return; // กันกดซ้ำระหว่างคราฟ
+
+    craftSession = {
+      recipe,
+      totalBatches: batches,
+      doneCount: 0,
+      successCount: 0,
+      cancelled: false,
+      currentMaterialsDeducted: false,
+    };
+
+    isCrafting = true;
+    renderItemList();
+    renderRight();
+
+    craftNextUnit();
+  }
+
+  // ── คราฟชิ้นถัดไปในเซสชัน (เรียกซ้ำจนครบ/ถูกยกเลิก) ──
+  function craftNextUnit() {
+    const session = craftSession;
+    if (!session || session.cancelled) return;
+
+    const recipe = session.recipe;
+
+    // เช็ควัตถุดิบของชิ้นนี้
     const hasAll = recipe.materials.every(mat =>
       (typeof Inventory !== 'undefined' && typeof Inventory.countItem === 'function')
-        ? Inventory.countItem(mat.id) >= mat.qty * batches : false
+        ? Inventory.countItem(mat.id) >= mat.qty : false
     );
     if (!hasAll) {
       if (typeof Notification !== 'undefined')
-        Notification.show('❌ วัตถุดิบไม่พอสำหรับคราฟ', { icon: '🛠️', color: '#ef5350' });
-      renderItemList();
-      renderRight();
+        Notification.show('❌ วัตถุดิบไม่พอสำหรับคราฟชิ้นต่อไป', { icon: '🛠️', color: '#ef5350' });
+      endCraftSession();
       return;
     }
 
-    recipe.materials.forEach(mat => {
-      Inventory.removeItem(mat.id, mat.qty * batches, true);
-    });
-
-    let successCount = 0;
-    for (let i = 0; i < batches; i++) {
-      if (Math.random() < recipe.successRate) successCount++;
+    // เช็คพื้นที่ stack ของไอเทมผลลัพธ์ — กระเป๋าเต็มกลางทาง (เช่น ได้ของจากแหล่งอื่นมาเพิ่ม) → หยุดคราฟ
+    if (resultStackSpace(recipe) < recipe.resultQty) {
+      if (typeof Notification !== 'undefined')
+        Notification.show('❌ ไม่สามารถคราฟได้ — กระเป๋าเก็บไอเทมนี้เกินจำนวนสูงสุดแล้ว', { icon: '🛠️', color: '#ef5350' });
+      endCraftSession();
+      return;
     }
 
-    const resultDef = itemDef(recipe.id);
-    const gainedQty = successCount * recipe.resultQty;
-    const failCount = batches - successCount;
+    // หักวัตถุดิบของชิ้นนี้ทันทีตอนเริ่มคราฟชิ้นนี้
+    recipe.materials.forEach(mat => {
+      Inventory.removeItem(mat.id, mat.qty, true);
+    });
+    session.currentMaterialsDeducted = true;
 
-    if (gainedQty > 0) {
-      Inventory.addItem(recipe.id, gainedQty, true);
+    renderItemList();
+    renderRight();
+
+    const perBatchTime = (typeof recipe.craftTime === 'number' && recipe.craftTime > 0)
+      ? recipe.craftTime : CRAFT_DEFAULT_TIME;
+    const startedAt = performance.now();
+
+    // ─ animate ring: นับเวลาคราฟชิ้นนี้ (วงไล่จากเต็มไปว่าง) ─
+    const refs = ringRefs;
+    if (refs) {
+      refs.fillCircle.classList.add('crafting');
+      refs.fillCircle.setAttribute('stroke', '#ffa726');
+      refs.pctLabel.style.color = '#ffa726';
+      refs.rateLabel.textContent = `กำลังคราฟ... (${session.doneCount + 1}/${session.totalBatches})`;
+    }
+
+    function tick() {
+      // ถูกยกเลิกระหว่างทาง → หยุดทันที (การคืนของจัดการใน cancelCraftSession แล้ว)
+      if (!craftSession || craftSession !== session || session.cancelled) return;
+
+      const elapsed  = (performance.now() - startedAt) / 1000;
+      const progress = Math.min(elapsed / perBatchTime, 1);
+
+      if (refs && ringRefs === refs) {
+        refs.fillCircle.setAttribute('stroke-dashoffset', String(refs.C * (1 - progress)));
+        refs.pctLabel.textContent = Math.round(progress * 100) + '%';
+      }
+
+      if (progress < 1) {
+        requestAnimationFrame(tick);
+      } else {
+        finishUnit(session);
+      }
+    }
+    requestAnimationFrame(tick);
+  }
+
+  // ── ตัดสินผลคราฟ 1 ชิ้น หลังจากเวลาคราฟครบ ───
+  function finishUnit(session) {
+    if (!craftSession || craftSession !== session || session.cancelled) return;
+
+    session.currentMaterialsDeducted = false; // ชิ้นนี้คราฟจบแล้ว (สำเร็จ/ล้มเหลว) ไม่ต้องคืนของแล้ว
+    session.doneCount++;
+
+    const recipe = session.recipe;
+    const success = Math.random() * 100 < recipe.successRate;
+    const resultDef = itemDef(recipe.id);
+
+    if (success) {
+      session.successCount++;
+      Inventory.addItem(recipe.id, recipe.resultQty, true);
       if (typeof Notification !== 'undefined' && typeof Notification.showItemCard === 'function') {
         Notification.showItemCard({
           type:     'gain',
           image:    resultDef.image || '',
           emoji:    resultDef.emoji || '🛠️',
           itemName: resultDef.name || recipe.id,
-          amount:   gainedQty,
+          amount:   recipe.resultQty,
         });
       }
-    }
-
-    if (batches === 1) {
-      if (successCount === 1) {
-        if (typeof Notification !== 'undefined')
-          Notification.showItemCard({ type: 'gain', image: resultDef.image || '', emoji: resultDef.emoji || '🛠️', itemName: resultDef.name || recipe.id, amount: recipe.resultQty });
-      } else {
-        if (typeof Notification !== 'undefined')
-          Notification.showItemCard({ type: 'lose', emoji: '💥', itemName: 'คราฟล้มเหลว', amount: batches });
-      }
     } else {
-      if (typeof Notification !== 'undefined') {
-        if (successCount > 0)
-          Notification.showItemCard({ type: 'gain', image: resultDef.image || '', emoji: resultDef.emoji || '🛠️', itemName: resultDef.name || recipe.id, amount: gainedQty });
-        if (failCount > 0)
-          Notification.showItemCard({ type: 'lose', emoji: '💥', itemName: 'คราฟล้มเหลว', amount: failCount });
+      if (typeof Notification !== 'undefined')
+        Notification.showItemCard({ type: 'lose', emoji: '💥', itemName: 'คราฟล้มเหลว', amount: 1 });
+    }
+
+    if (session.doneCount >= session.totalBatches) {
+      endCraftSession();
+    } else {
+      craftNextUnit();
+    }
+  }
+
+  // ── จบเซสชันคราฟตามปกติ (ครบจำนวน หรือวัตถุดิบหมดกลางทาง) ──
+  function endCraftSession() {
+    craftSession = null;
+    isCrafting = false;
+    craftQty = 1;
+    renderItemList();
+    renderCenter();   // จะ reset ring กลับไปแสดงโอกาสสำเร็จตามปกติ
+    renderRight();
+  }
+
+  // ── คืนวัตถุดิบโดยไม่สนใจ maxStack ──────────────
+  // ใช้ตอนยกเลิกคราฟ: ผู้เล่นอาจมีไอเทมเกิน stack อยู่แล้ว ถ้าใช้ Inventory.addItem ปกติ
+  // (ซึ่งเช็ค maxStack) จะคืนไม่ได้เลยถ้า slot เดิมเต็ม/เกินอยู่แล้ว
+  function refundMaterialIgnoreStack(itemId, qty) {
+    if (!qty || qty <= 0) return; // qty = 0 → ไม่ต้องคืน (ไม่เคยถูกหักไปจริง)
+
+    const slots = Inventory._slots;
+    let slot = slots.find(s => s && s.id === itemId && !s.meta);
+    if (slot) {
+      slot.count += qty;
+    } else {
+      const emptyIdx = slots.findIndex(s => !s || !s.id);
+      if (emptyIdx === -1) {
+        slots.push({ id: itemId, count: qty });
+      } else {
+        slots[emptyIdx] = { id: itemId, count: qty };
       }
     }
 
+    if (typeof Inventory._save === 'function') Inventory._save();
+    if (typeof Inventory._renderUI === 'function') Inventory._renderUI();
+    if (typeof Hotbar !== 'undefined' && typeof Hotbar._render === 'function') Hotbar._render();
+  }
+
+  // ── ยกเลิกการคราฟ (ผู้เล่นกดยกเลิก หรือปิด panel ระหว่างคราฟ) ──
+  // คืนวัตถุดิบเฉพาะ "ชิ้นที่กำลังคราฟอยู่ ณ ตอนนี้" เท่านั้น
+  // (ชิ้นที่คราฟสำเร็จ/ล้มเหลวไปแล้วก่อนหน้านี้ ถือว่าจบไปแล้ว ไม่คืน)
+  function cancelCraftSession() {
+    if (!craftSession) return;
+    const session = craftSession;
+    session.cancelled = true;
+
+    if (session.currentMaterialsDeducted) {
+      session.recipe.materials.forEach(mat => {
+        refundMaterialIgnoreStack(mat.id, mat.qty); // qty = 0 → ข้ามอัตโนมัติ, ไม่สน maxStack
+      });
+      session.currentMaterialsDeducted = false;
+    }
+
+    if (typeof Notification !== 'undefined')
+      Notification.show('⏹️ ยกเลิกการคราฟ — คืนวัตถุดิบแล้ว', { icon: '🛠️', color: '#ffa726' });
+
+    craftSession = null;
+    isCrafting = false;
     craftQty = 1;
     renderItemList();
     renderCenter();
@@ -816,6 +1016,7 @@ const CRAFT_CATEGORIES = ['ทั่วไป', 'ซัพพลาย', 'อา
   }
 
   function closeCraft() {
+    if (isCrafting) cancelCraftSession();
     overlay.style.display = 'none';
   }
 

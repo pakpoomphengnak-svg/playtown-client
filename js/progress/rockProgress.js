@@ -219,10 +219,6 @@ function finishRockPacking() {
   Inventory.removeItem('rock', ROCK_PACK_ROCKS_NEED);
   Inventory.addItem(result.id, 1);
 
-  if (typeof Notification !== 'undefined') {
-    Notification.show(`หลอมได้ ${result.label}!`, { icon: result.icon, color: '#00ff00' });
-  }
-
   if (rockPackIsNear) startRockPacking();
 }
 
