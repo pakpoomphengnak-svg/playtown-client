@@ -58,7 +58,7 @@ appleBtn.textContent = 'เก็บ 🍎';
 Object.assign(appleBtn.style, {
   position:     'fixed',
   bottom:       '10px',
-  left:         '80%',
+  left:         '85%',
   transform:    'translateX(-50%) scale(0.9)',
   background:   'rgba(229,57,53,0.85)',
   border:       '2px solid rgba(255,255,255,0.6)',

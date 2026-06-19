@@ -14,20 +14,15 @@ const SERVER_URL = window.location.hostname === 'localhost'
 const DataService = {
 
   savePosition(x, z) {
-    if (USE_SERVER) {
-      // ส่งผ่าน SocketClient (game.js จะเรียก sendPosition แทน)
-      return;
-    }
     localStorage.setItem('player_position', JSON.stringify({ x, z }));
+    this._markDirty('player_position');
   },
 
   getPosition() {
-    if (USE_SERVER) {
-      // ตำแหน่งเริ่มต้น — server จะส่ง spawn point มาทีหลัง
-      return { x: 110, z: -70 };
-    }
+    // อ่านตำแหน่งล่าสุดที่ sync มาจาก Firestore/localStorage
+    // ถ้าไม่เคยมี (ผู้เล่นใหม่) ค่อยใช้จุดเกิดเริ่มต้น
     const data = localStorage.getItem('player_position');
-    return data ? JSON.parse(data) : { x: 0, z: 0 };
+    return data ? JSON.parse(data) : { x: 110, z: 70 };
   },
 
   // ─────────────────────────────────────────────
@@ -106,6 +101,7 @@ const DataService = {
     'setting_hotbar',
     'setting_garage_state_v1',
     'player',
+    'player_position',
   ],
 
   _dirty: new Set(),
@@ -144,6 +140,7 @@ const DataService = {
   _firestoreFieldFor(key) {
     const map = {
       'player':                    'stats',
+      'player_position':           'position',
       'setting_inventory':         'inventory',
       'setting_hotbar':            'hotbar',
       'setting_garage_state_v1':   'garage',
