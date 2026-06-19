@@ -123,6 +123,10 @@ function animate() {
   if (typeof updateAppleProgress === 'function') updateAppleProgress(dt, elapsedTime);
   if (typeof updateGrapePickups === 'function') updateGrapePickups(dt, elapsedTime);
   if (typeof updateGrapeProgress === 'function') updateGrapeProgress(dt, elapsedTime);
+  if (typeof updateLogPickups === 'function') updateLogPickups(dt, elapsedTime);
+  if (typeof updateLogProgress === 'function') updateLogProgress(dt, elapsedTime);
+  if (typeof updateRockPickups === 'function') updateRockPickups(dt, elapsedTime);
+  if (typeof updateRockProgress === 'function') updateRockProgress(dt, elapsedTime);
   if (typeof updateMarket === 'function') updateMarket();
   if (typeof updateStore === 'function') updateStore();
   if (typeof updateDealership === 'function') updateDealership();
