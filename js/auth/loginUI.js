@@ -102,22 +102,9 @@
     await finishLogin(regUserIn.value.trim());
   });
 
-  // ── auto-login ถ้ามี session เดิมในเครื่อง ──
-  (async function tryAutoLogin() {
-    const savedUsername = AuthService.getSession();
-    if (!savedUsername) return; // ไม่มี session, แสดงหน้า login ปกติ
-
-    setLoading(true);
-    try {
-      const doc = await db.collection('players').doc(savedUsername).get();
-      if (doc.exists) {
-        await finishLogin(savedUsername);
-        return;
-      }
-    } catch (err) {
-      console.warn('[LoginUI] auto-login ล้มเหลว', err);
-    }
-    setLoading(false);
-  })();
+  // ── หมายเหตุ: auto-login ถูกย้ายไปทำที่ js/loading.js แทนแล้ว ──
+  // เพราะตอนนี้ auto-login จะถูกเช็คตั้งแต่หน้า loading screen (ก่อนเห็นหน้า login)
+  // ถ้า auto-login สำเร็จ ผู้เล่นจะข้ามหน้า login ไปเข้าเกมเลยโดยไม่เห็นหน้านี้
+  // ถ้า auto-login ไม่สำเร็จ/ไม่มี session, loading.js จะแสดงหน้า login นี้ให้กรอกปกติ
 
 })();

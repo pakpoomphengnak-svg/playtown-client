@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="css/hud.css">
   <link rel="stylesheet" href="css/vehicle-controls.css">
   <link rel="stylesheet" href="css/login.css">
+  <link rel="stylesheet" href="css/loading.css">
 
   <!-- ── ป้องกัน text selection / callout ทั้งเกม ── -->
   <style>
@@ -36,8 +37,19 @@
 </head>
 <body>
 
-  <!-- ── หน้า Login (แสดงก่อนเข้าเกม) ── -->
-  <div id="login-screen">
+  <!-- ── หน้า Loading (แสดงทันทีตอนเข้าเกม ก่อนหน้า login) ── -->
+  <div id="loading-screen">
+    <div id="loading-box">
+      <h1 id="loading-title">PLAYTOWN</h1>
+      <div id="loading-bar-track">
+        <div id="loading-bar-fill"></div>
+      </div>
+      <p id="loading-label">กำลังโหลด...</p>
+    </div>
+  </div>
+
+  <!-- ── หน้า Login (แสดงก่อนเข้าเกม ถ้ายังไม่เคย login) ── -->
+  <div id="login-screen" style="display:none;">
     <div id="login-box">
       <h1>PLAYTOWN</h1>
 
@@ -135,9 +147,48 @@
   <script src="js/auth/characterUI.js"></script>
 
   <script>
+    // ── กลุ่ม script ของเกม แยกตาม dependency (โหลดเรียงลำดับเป็นกลุ่มๆ) ──
+    var GAME_SCRIPT_GROUPS = [
+      // GROUP 1: รากฐาน (scene, camera, renderer)
+      ['js/core/scene.js'],
+      // GROUP 2: ต้องการ scene
+      ['js/core/lighting.js', 'js/world/ground.js'],
+      // GROUP 3: ต้องการ scene + colliders + groundMeshes
+      ['js/world/trees.js', 'js/world/roads.js', 'js/building/landmark.js',
+       'js/building/appleFarm.js', 'js/building/grapeFarm.js', 'js/building/economy.js',
+       'js/building/store.js', 'js/building/rebel.js', 'js/building/gas_station.js'],
+      // GROUP 4: ต้องการ PARK_CENTER (parking) และ STORE_CENTER (atm)
+      ['js/building/parking.js', 'js/building/atm.js', 'js/building/showroom.js',
+       'js/multiplayer/socketClient.js', 'js/system/player.js', 'js/system/notification.js'],
+      // GROUP 5: ต้องการ player, notification, scene
+      ['js/system/inventory.js', 'js/system/hotbar.js', 'js/system/hud.js'],
+      ['js/item/apple.js', 'js/item/apple_packaged.js', 'js/item/grape.js', 'js/item/juice_grape.js',
+       'js/item/cash.js', 'js/item/water_bottle.js', 'js/item/burger.js', 'js/item/car_key.js',
+       'js/item/safe_key.js', 'js/item/coffee.js', 'js/item/spray.js',
+       'js/character/characterModel.js', 'js/camera/orbitCamera.js', 'js/input/joystick.js',
+       'js/input/cameraDrag.js', 'js/input/keyboard.js', 'js/input/sprintButton.js',
+       'js/input/attackButton.js', 'js/vehicle/starter_car.js', 'js/vehicle/audi.js'],
+      // GROUP 6: ต้องการ characterModel, vehicle models
+      ['js/character/characterAnim.js', 'js/multiplayer/remotePlayers.js', 'js/system/minimap.js',
+       'js/system/vehicle.js', 'js/pickup/applePickup.js', 'js/pickup/grapePickup.js',
+       'js/progress/appleProgress.js', 'js/progress/grapeProgress.js', 'js/system/marketShop.js',
+       'js/system/storeShop.js', 'js/system/safeBox.js', 'js/system/bank.js',
+       'js/system/craftTable.js', 'js/system/dealership.js', 'js/system/garage.js',
+       'js/system/gas.js', 'js/system/setting.js'],
+      // GROUP 7: จุดเริ่มเกม (ต้องโหลดสุดท้ายเสมอ)
+      ['js/game.js'],
+    ];
+
+    var _gameScriptsStarted = false;
+
     function startGameScripts() {
+      // กันโหลดซ้ำ (เผื่อถูกเรียกทั้งจาก loading.js auto-login และจาก onLoginSuccess)
+      if (_gameScriptsStarted) return Promise.resolve();
+      _gameScriptsStarted = true;
+
       document.getElementById('game-ui').style.display = 'block';
       var v = Date.now();
+      var totalGroups = GAME_SCRIPT_GROUPS.length;
 
       function load(src) {
         return new Promise(function (resolve, reject) {
@@ -153,96 +204,31 @@
         return Promise.all(srcs.map(load));
       }
 
-      // ── GROUP 1: รากฐาน (scene, camera, renderer) ──────────────────────
-      loadGroup([
-        'js/core/scene.js',
-      ])
-      // ── GROUP 2: ต้องการ scene ──────────────────────────────────────────
-      .then(function () { return loadGroup([
-        'js/core/lighting.js',
-        'js/world/ground.js',         // ← ประกาศ colliders, groundMeshes
-      ]); })
-      // ── GROUP 3: ต้องการ scene + colliders + groundMeshes ───────────────
-      // (landmark ประกาศ PARK_CENTER, store ประกาศ STORE_CENTER)
-      .then(function () { return loadGroup([
-        'js/world/trees.js',
-        'js/world/roads.js',
-        'js/building/landmark.js',    // ← ประกาศ PARK_CENTER, PARK_SIZE
-        'js/building/appleFarm.js',
-        'js/building/grapeFarm.js',
-        'js/building/economy.js',
-        'js/building/store.js',       // ← ประกาศ STORE_CENTER
-        'js/building/rebel.js',
-        'js/building/gas_station.js',
-      ]); })
-      // ── GROUP 4: ต้องการ PARK_CENTER (parking) และ STORE_CENTER (atm) ──
-      .then(function () { return loadGroup([
-        'js/building/parking.js',     // ← ใช้ PARK_CENTER จาก landmark.js
-        'js/building/atm.js',         // ← ใช้ STORE_CENTER จาก store.js
-        'js/building/showroom.js',    // ← ประกาศ SHOWROOM_CENTER
-        'js/multiplayer/socketClient.js',
-        'js/system/player.js',
-        'js/system/notification.js',
-      ]); })
-      // ── GROUP 5: ต้องการ player, notification, scene ────────────────────
-      .then(function () { return loadGroup([
-        'js/system/inventory.js',
-        'js/system/hotbar.js',
-        'js/system/hud.js',
-        'js/item/apple.js',
-        'js/item/apple_packaged.js',
-        'js/item/grape.js',
-        'js/item/juice_grape.js',
-        'js/item/cash.js',
-        'js/item/water_bottle.js',
-        'js/item/burger.js',
-        'js/item/car_key.js',
-        'js/item/safe_key.js',
-        'js/item/coffee.js',
-        'js/item/spray.js',
-        'js/character/characterModel.js', // ← ประกาศ createCharacterModel
-        'js/camera/orbitCamera.js',
-        'js/input/joystick.js',
-        'js/input/cameraDrag.js',
-        'js/input/keyboard.js',
-        'js/input/sprintButton.js',
-        'js/input/attackButton.js',
-        'js/vehicle/starter_car.js',  // ← ประกาศ VEHICLE_TYPES (starter)
-        'js/vehicle/audi.js',         // ← ประกาศ VEHICLE_TYPES (audi)
-      ]); })
-      // ── GROUP 6: ต้องการ characterModel, vehicle models ────────────────
-      .then(function () { return loadGroup([
-        'js/character/characterAnim.js',
-        'js/multiplayer/remotePlayers.js', // ← ใช้ createCharacterModel
-        'js/system/minimap.js',
-        'js/system/vehicle.js',        // ← ใช้ VEHICLE_TYPES, scene, colliders
-        'js/pickup/applePickup.js',
-        'js/pickup/grapePickup.js',
-        'js/progress/appleProgress.js',
-        'js/progress/grapeProgress.js',
-        'js/system/marketShop.js',
-        'js/system/storeShop.js',
-        'js/system/safeBox.js',
-        'js/system/bank.js',
-        'js/system/craftTable.js',
-        'js/system/dealership.js',
-        'js/system/garage.js',
-        'js/system/gas.js',
-        'js/system/setting.js',
-      ]); })
-      // ── GROUP 7: จุดเริ่มเกม (ต้องโหลดสุดท้ายเสมอ) ─────────────────────
-      .then(function () { return load('js/game.js'); })
-      .catch(function (err) {
+      var chain = Promise.resolve();
+      GAME_SCRIPT_GROUPS.forEach(function (group, i) {
+        chain = chain.then(function () { return loadGroup(group); })
+          .then(function () {
+            if (typeof window.onLoadingScriptProgress === 'function') {
+              window.onLoadingScriptProgress(i + 1, totalGroups);
+            }
+          });
+      });
+
+      return chain.catch(function (err) {
         console.error('[startGameScripts] โหลด script ล้มเหลว:', err);
+        throw err;
       });
     }
 
-    // ── เรียกหลัง login สำเร็จ ──
+    // ── เรียกหลัง login สำเร็จ (กรอกฟอร์ม login เอง ไม่ใช่ auto-login) ──
     window.onLoginSuccess = function (username) {
       console.log('[Game] login สำเร็จ:', username);
       startGameScripts();
     };
   </script>
+
+  <!-- ── ระบบ Loading: ถ่วงเวลาหน้าจอจนกว่าจะพร้อม + auto-login เงียบๆ ── -->
+  <script src="js/loading.js"></script>
 
   <!-- ล้าง Service Worker เก่าออกอัตโนมัติ -->
   <script>

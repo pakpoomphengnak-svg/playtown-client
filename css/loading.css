@@ -1,0 +1,60 @@
+/* client/css/loading.css */
+#loading-screen {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: #000 url('../assets/playtown/background.png') center center / cover no-repeat;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000; /* อยู่บนสุด เหนือทั้ง login-screen (9999) และ character-screen (9999) */
+  font-family: sans-serif;
+  box-sizing: border-box;
+  padding: 16px;
+  opacity: 1;
+  transition: opacity 0.4s ease;
+}
+
+#loading-screen.loading-done {
+  opacity: 0;
+  pointer-events: none;
+}
+
+#loading-box {
+  width: 100%;
+  max-width: 320px;
+  text-align: center;
+}
+
+#loading-title {
+  color: #fff;
+  font-size: 30px;
+  letter-spacing: 2px;
+  margin-bottom: 28px;
+  text-shadow: 0 2px 12px rgba(0,0,0,0.6);
+}
+
+#loading-bar-track {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.2);
+  overflow: hidden;
+}
+
+#loading-bar-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #4f9dff, #7fc1ff);
+  transition: width 0.1s linear;
+}
+
+#loading-label {
+  margin-top: 14px;
+  color: rgba(255,255,255,0.7);
+  font-size: 13px;
+  letter-spacing: 0.3px;
+}
