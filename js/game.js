@@ -209,7 +209,8 @@ if (typeof SocketClient !== 'undefined') {
     const displayName = Player.name
       || (typeof AuthService !== 'undefined' && AuthService.getCurrentUsername())
       || 'Player';
-    SocketClient.joinGame(displayName, Player.x, Player.z, Player.rotY);
+    const localGender = (typeof _localGender !== 'undefined') ? _localGender : 'male';
+    SocketClient.joinGame(displayName, Player.x, Player.z, Player.rotY, localGender);
   });
 
   SocketClient.connect(MULTIPLAYER_SERVER_URL);

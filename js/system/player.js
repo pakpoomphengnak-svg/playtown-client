@@ -9,6 +9,7 @@ const Player = {
   // ── State ──────────────────────────────────
   id:       'local',   // TODO: uuid จาก server ตอน multiplayer
   name:     'Player',
+  gender:   'male',   // 'male' | 'female' | 'lgbtq'  (โหลดจาก DataService ตอน load())
   hp:       100,
   maxHp:    100,
 
@@ -208,8 +209,11 @@ const Player = {
 
   // โหลดข้อมูลจาก DataService ตอนเริ่มเกม
   load() {
-    const saved = DataService.getPlayer();
+    const saved   = DataService.getPlayer();
+    const profile = DataService.getProfile();
+
     this.name    = saved.name    ?? this.name;
+    this.gender  = profile.gender ?? this.gender;  // 'male' | 'female' | 'lgbtq'
     this.hp      = saved.hp      ?? this.hp;
     this.food    = saved.food    ?? this.food;
     this.water   = saved.water   ?? this.water;

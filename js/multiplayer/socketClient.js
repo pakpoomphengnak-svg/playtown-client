@@ -78,9 +78,9 @@ const SocketClient = (() => {
   }
 
   // ── Join เกมหลัง connect แล้ว ─────────────
-  function joinGame(name, x, z, rotY) {
+  function joinGame(name, x, z, rotY, gender) {
     if (!socket) return;
-    socket.emit('playerJoin', { name, x, z, rotY });
+    socket.emit('playerJoin', { name, x, z, rotY, gender });
   }
 
   // ── ส่งตำแหน่งไปยัง server ─────────────────

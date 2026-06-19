@@ -28,6 +28,16 @@ const DataService = {
   // ─────────────────────────────────────────────
   // PLAYER
   // ─────────────────────────────────────────────
+  // ── Profile (gender, name) ──────────────────
+  getProfile() {
+    const data = localStorage.getItem('player_profile');
+    return data ? JSON.parse(data) : { gender: 'male' };
+  },
+
+  saveProfile(profileData) {
+    localStorage.setItem('player_profile', JSON.stringify(profileData));
+  },
+
   getPlayer() {
     // โหลดจาก local cache ก่อนเสมอ (เร็ว, ใช้งานได้ทันทีแม้เน็ตหลุด)
     const data = localStorage.getItem('player');
@@ -142,6 +152,7 @@ const DataService = {
     if (!doc.exists) return false;
 
     const data = doc.data();
+    if (data.profile)    localStorage.setItem('player_profile', JSON.stringify(data.profile));
     if (data.stats)      localStorage.setItem('player', JSON.stringify(data.stats));
     if (data.inventory)  localStorage.setItem('setting_inventory', JSON.stringify(data.inventory));
     if (data.hotbar)     localStorage.setItem('setting_hotbar', JSON.stringify(data.hotbar));

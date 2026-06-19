@@ -39,8 +39,9 @@ const RemotePlayers = (() => {
   function add(player) {
     if (_players[player.id]) return; // มีอยู่แล้ว ไม่ต้องสร้างซ้ำ
 
+    const gender = (player.gender === 'female') ? 'female' : 'male';
     const character = (typeof createCharacterModel === 'function')
-      ? createCharacterModel()
+      ? createCharacterModel(gender)
       : null;
 
     // fallback กันพังถ้า characterModel.js ยังไม่โหลด (ไม่ควรเกิดขึ้นถ้าลำดับ script ถูก)
