@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="css/game.css">
   <link rel="stylesheet" href="css/hud.css">
   <link rel="stylesheet" href="css/vehicle-controls.css">
+  <link rel="stylesheet" href="css/login.css">
 
   <!-- ── ป้องกัน text selection / callout ทั้งเกม ── -->
   <style>
@@ -35,6 +36,21 @@
 </head>
 <body>
 
+  <!-- ── หน้า Login (แสดงก่อนเข้าเกม) ── -->
+  <div id="login-screen">
+    <div id="login-box">
+      <h1>PLAYTOWN</h1>
+      <p class="subtitle">เข้าสู่ระบบเพื่อเล่นต่อ</p>
+      <input id="login-username" type="text" placeholder="ชื่อผู้ใช้ (3-16 ตัวอักษร)" autocomplete="off" autocapitalize="off">
+      <input id="login-password" type="password" placeholder="รหัสผ่าน" autocomplete="off">
+      <button id="login-btn">เข้าสู่ระบบ</button>
+      <button id="register-btn">สมัครสมาชิกใหม่</button>
+      <div id="login-error"></div>
+      <div id="login-loading">กำลังโหลด...</div>
+    </div>
+  </div>
+
+  <div id="game-ui" style="display:none;">
   <div id="hud">
     <div id="coords">x: 0 &nbsp; z: 0</div>
   </div>
@@ -49,16 +65,28 @@
 
   <div id="sprint-btn"><img src="assets/buttons/sprint-btn.png" alt="sprint"></div>
   <div id="attack-btn"><img src="assets/buttons/attack-btn.png" alt="attack"></div>
+  </div>
 
   <script src="js/error-log.js"></script>
+
+  <!-- ── Firebase (ต้องโหลดก่อนระบบ login/data) ── -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="js/auth/firebaseConfig.js"></script>
 
   <!-- ── Socket.IO (ต้องโหลดก่อน script เกมทุกตัว) ── -->
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
+  <!-- ── ระบบ Login (โหลดก่อนเกม ต้อง login สำเร็จก่อนเกมจะเริ่มโหลด) ── -->
+  <script src="js/dataService.js"></script>
+  <script src="js/auth/authService.js"></script>
+  <script src="js/auth/loginUI.js"></script>
+
   <script>
-    (function () {
+    function startGameScripts() {
+      document.getElementById('game-ui').style.display = 'block';
       var v = Date.now();
       [
         'js/core/scene.js',
@@ -76,7 +104,6 @@
         'js/building/atm.js',
         'js/building/gas_station.js',
         'js/multiplayer/socketClient.js',   // ← ใหม่ (ก่อน dataService)
-        'js/dataService.js',
         'js/system/player.js',
         'js/system/notification.js',
         'js/system/inventory.js',
@@ -120,10 +147,24 @@
         'js/system/gas.js',
         'js/system/setting.js',
         'js/game.js'
-      ].forEach(function (src) {
-        document.write('<scr' + 'ipt src="' + src + '?v=' + v + '"></scr' + 'ipt>');
-      });
-    })();
+      ].reduce(function (chain, src) {
+        return chain.then(function () {
+          return new Promise(function (resolve, reject) {
+            var s = document.createElement('script');
+            s.src = src + '?v=' + v;
+            s.onload = resolve;
+            s.onerror = reject;
+            document.body.appendChild(s);
+          });
+        });
+      }, Promise.resolve());
+    }
+
+    // ── เรียกหลัง login สำเร็จ ──
+    window.onLoginSuccess = function (username) {
+      console.log('[Game] login สำเร็จ:', username);
+      startGameScripts();
+    };
   </script>
 
   <!-- ล้าง Service Worker เก่าออกอัตโนมัติ -->

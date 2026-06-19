@@ -34,8 +34,7 @@ const DataService = {
   // PLAYER
   // ─────────────────────────────────────────────
   getPlayer() {
-    // ยังคงอ่านจาก localStorage เพื่อโหลด stats (hp, food, money ฯลฯ)
-    // multiplayer ใช้ server เฉพาะ position + presence
+    // โหลดจาก local cache ก่อนเสมอ (เร็ว, ใช้งานได้ทันทีแม้เน็ตหลุด)
     const data = localStorage.getItem('player');
     return data ? JSON.parse(data) : {
       name:    'Player',
@@ -117,13 +116,66 @@ const DataService = {
 
   async syncToServer() {
     if (this._dirty.size === 0) return;
-    // TODO: sync player stats ไปยัง server (phase ถัดไป)
-    this._dirty.clear();
+    const username = AuthService.getCurrentUsername();
+    if (!username) return; // ยังไม่ login, ไม่มีที่ให้ sync ไป
+
+    const payload = {};
+    this._dirty.forEach(key => {
+      const raw = localStorage.getItem(key);
+      if (raw === null) return;
+      try {
+        payload[this._firestoreFieldFor(key)] = JSON.parse(raw);
+      } catch (_) {
+        payload[this._firestoreFieldFor(key)] = raw;
+      }
+    });
+
+    try {
+      await db.collection('players').doc(username).update(payload);
+      console.log('[DataService] sync สำเร็จ →', Object.keys(payload));
+      this._dirty.clear();
+    } catch (err) {
+      console.error('[DataService] sync ล้มเหลว, จะลองใหม่ภายหลัง', err);
+      // ไม่ clear _dirty ไว้ เพื่อให้ลองใหม่รอบถัดไป
+    }
+  },
+
+  // map ชื่อ localStorage key → ชื่อ field ใน Firestore document
+  _firestoreFieldFor(key) {
+    const map = {
+      'player':                    'stats',
+      'setting_inventory':         'inventory',
+      'setting_hotbar':            'hotbar',
+      'setting_garage_state_v1':   'garage',
+      'playtown_safebox':          'safebox',
+      'playtown_bank':             'bank',
+      'dealership_owned_v1':       'dealership',
+    };
+    return map[key] || key;
+  },
+
+  // ── โหลดข้อมูลผู้เล่นจาก Firestore เข้า localStorage (เรียกตอน login) ──
+  async loadFromServer(username) {
+    const doc = await db.collection('players').doc(username).get();
+    if (!doc.exists) return false;
+
+    const data = doc.data();
+    if (data.stats)      localStorage.setItem('player', JSON.stringify(data.stats));
+    if (data.inventory)  localStorage.setItem('setting_inventory', JSON.stringify(data.inventory));
+    if (data.hotbar)     localStorage.setItem('setting_hotbar', JSON.stringify(data.hotbar));
+    if (data.garage)     localStorage.setItem('setting_garage_state_v1', JSON.stringify(data.garage));
+    if (data.safebox)    localStorage.setItem('playtown_safebox', JSON.stringify(data.safebox));
+    if (data.bank)       localStorage.setItem('playtown_bank', JSON.stringify(data.bank));
+    if (data.dealership) localStorage.setItem('dealership_owned_v1', JSON.stringify(data.dealership));
+    if (data.position)   localStorage.setItem('player_position', JSON.stringify(data.position));
+
+    console.log('[DataService] โหลดข้อมูลจาก Firestore สำเร็จ:', username);
+    return true;
   },
 
 };
 
 // ── Auto sync ──────────────────────────────────
-setInterval(() => DataService.syncToServer(), 5 * 60 * 1000);
+setInterval(() => DataService.syncToServer(), 30 * 1000);
 window.addEventListener('beforeunload', () => DataService.syncToServer());
 window.addEventListener('pagehide',     () => DataService.syncToServer());

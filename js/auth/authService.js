@@ -1,0 +1,128 @@
+// client/js/auth/authService.js
+// ─────────────────────────────────────────────
+// ระบบ Login แบบ username + password (เก็บใน Firestore)
+// ไม่ใช้ Firebase Authentication จริง — เหมาะกับเกมที่ไม่มีข้อมูลอ่อนไหวมาก
+// ─────────────────────────────────────────────
+
+const AuthService = (() => {
+
+  let _currentUsername = null;
+
+  // ── เข้ารหัสรหัสผ่านด้วย SHA-256 ──────────────
+  async function hashPassword(password) {
+    const enc = new TextEncoder().encode(password);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', enc);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  // ── ตรวจสอบรูปแบบ username ────────────────────
+  function isValidUsername(username) {
+    return /^[a-zA-Z0-9_]{3,16}$/.test(username);
+  }
+
+  // ── สมัครสมาชิกใหม่ ────────────────────────────
+  async function register(username, password) {
+    if (!isValidUsername(username)) {
+      return { ok: false, error: 'ชื่อผู้ใช้ต้องเป็น a-z, A-Z, 0-9, _ ความยาว 3-16 ตัวอักษร' };
+    }
+    if (!password || password.length < 4) {
+      return { ok: false, error: 'รหัสผ่านต้องมีอย่างน้อย 4 ตัวอักษร' };
+    }
+
+    const userRef = db.collection('players').doc(username);
+    const doc = await userRef.get();
+
+    if (doc.exists) {
+      return { ok: false, error: 'ชื่อผู้ใช้นี้มีคนใช้แล้ว' };
+    }
+
+    const passwordHash = await hashPassword(password);
+
+    const defaultPlayer = {
+      username,
+      passwordHash,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      lastLogin: firebase.firestore.FieldValue.serverTimestamp(),
+      stats: {
+        name: username,
+        hp: 100, food: 100, water: 100, hygiene: 100, brain: 100, stamina: 100,
+        money: 0,
+      },
+      position: { x: 110, z: -70 },
+      inventory: {},
+      hotbar: {},
+      garage: {},
+      safebox: {},
+      bank: {},
+      dealership: {},
+    };
+
+    await userRef.set(defaultPlayer);
+    _currentUsername = username;
+    _saveSession(username);
+    return { ok: true, data: defaultPlayer };
+  }
+
+  // ── เข้าสู่ระบบ ────────────────────────────────
+  async function login(username, password) {
+    if (!username || !password) {
+      return { ok: false, error: 'กรุณากรอกชื่อผู้ใช้และรหัสผ่าน' };
+    }
+
+    const userRef = db.collection('players').doc(username);
+    const doc = await userRef.get();
+
+    if (!doc.exists) {
+      return { ok: false, error: 'ไม่พบชื่อผู้ใช้นี้' };
+    }
+
+    const data = doc.data();
+    const passwordHash = await hashPassword(password);
+
+    if (data.passwordHash !== passwordHash) {
+      return { ok: false, error: 'รหัสผ่านไม่ถูกต้อง' };
+    }
+
+    await userRef.update({
+      lastLogin: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+
+    _currentUsername = username;
+    _saveSession(username);
+    return { ok: true, data };
+  }
+
+  // ── จำ session ไว้ใน localStorage (เพื่อไม่ต้อง login ซ้ำทุกครั้ง) ──
+  function _saveSession(username) {
+    localStorage.setItem('playtown_session', username);
+  }
+
+  function getSession() {
+    return localStorage.getItem('playtown_session');
+  }
+
+  function logout() {
+    localStorage.removeItem('playtown_session');
+    _currentUsername = null;
+  }
+
+  function getCurrentUsername() {
+    return _currentUsername;
+  }
+
+  function setCurrentUsername(username) {
+    _currentUsername = username;
+  }
+
+  return {
+    register,
+    login,
+    logout,
+    getSession,
+    getCurrentUsername,
+    setCurrentUsername,
+    hashPassword,
+  };
+
+})();
