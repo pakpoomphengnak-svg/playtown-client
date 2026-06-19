@@ -102,6 +102,11 @@ const AuthService = (() => {
     return !!(data.profile && data.profile.firstName);
   }
 
+  // ── ตรวจสอบรูปแบบ ชื่อ/นามสกุล: ขึ้นต้นด้วยพิมพ์ใหญ่ ตามด้วยพิมพ์เล็กเท่านั้น เช่น Abc, Def ──
+  function isValidNamePart(value) {
+    return /^[A-Z][a-z]{1,15}$/.test(value);
+  }
+
   // ── บันทึกข้อมูลตัวละคร ──
   async function saveProfile(username, profile) {
     const { firstName, lastName, day, month, year, gender } = profile;
@@ -112,10 +117,16 @@ const AuthService = (() => {
     if (!lastName || !lastName.trim()) {
       return { ok: false, error: 'กรุณากรอกนามสกุล' };
     }
+    if (!isValidNamePart(firstName.trim())) {
+      return { ok: false, error: 'ชื่อต้องขึ้นต้นด้วยพิมพ์ใหญ่และตามด้วยพิมพ์เล็กเท่านั้น เช่น Abc' };
+    }
+    if (!isValidNamePart(lastName.trim())) {
+      return { ok: false, error: 'นามสกุลต้องขึ้นต้นด้วยพิมพ์ใหญ่และตามด้วยพิมพ์เล็กเท่านั้น เช่น Def' };
+    }
     const d = parseInt(day, 10);
     const m = parseInt(month, 10);
     const y = parseInt(year, 10);
-    if (!d || d < 1 || d > 31 || !m || m < 1 || m > 12 || !y || y < 2400 || y > 2600) {
+    if (!d || d < 1 || d > 31 || !m || m < 1 || m > 12 || !y || y < 1900 || y > 2025) {
       return { ok: false, error: 'กรุณากรอกวัน/เดือน/ปีเกิดให้ถูกต้อง' };
     }
     if (!['male', 'female', 'lgbtq'].includes(gender)) {
@@ -171,6 +182,7 @@ const AuthService = (() => {
     hashPassword,
     hasProfile,
     saveProfile,
+    isValidNamePart,
   };
 
 })();

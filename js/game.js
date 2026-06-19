@@ -198,9 +198,9 @@ if (typeof SocketClient !== 'undefined') {
   });
 
   SocketClient.on('onSelfId', () => {
-    // ใช้ username จากระบบ login (Firestore) เป็นชื่อที่คนอื่นเห็น
-    const displayName = (typeof AuthService !== 'undefined' && AuthService.getCurrentUsername())
-      || Player.name
+    // ใช้ชื่อ-นามสกุลตัวละคร (Player.name) เป็นชื่อที่ลอยเหนือหัวให้คนอื่นเห็น
+    const displayName = Player.name
+      || (typeof AuthService !== 'undefined' && AuthService.getCurrentUsername())
       || 'Player';
     SocketClient.joinGame(displayName, Player.x, Player.z, Player.rotY);
   });
