@@ -25,22 +25,24 @@
 //   'burger',
 //
 const INVENTORY_SORT_ORDER = [
-  // ── เงิน/สกุลเงิน ──
   'cash',
   'dirty_cash',
-
-  // ── อาหาร/consumable ──
   'burger',
   'water_bottle',
   'coffee',
   'spray',
   'apple',
-  'apple_packaged',
   'grape',
+  'log',
+  'rock',
+  'apple_packaged',
   'juice_grape',
-
-  // ── ยานพาหนะ ──
+  'woodplank',
+  'ironingot',
+  'goldingot',
+  'diamond',
   'car_key',
+  'safe_key',
 
   // ── เพิ่มไอเทมอื่น ๆ ที่นี่ตามลำดับที่ต้องการ ──
 ];

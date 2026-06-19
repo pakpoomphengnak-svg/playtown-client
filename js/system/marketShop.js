@@ -9,8 +9,10 @@
 const MARKET_PRICE_RANGE = {
   apple_packaged: { min: 100, max: 200 },
   juice_grape: { min: 150, max: 300 },
-  // ore:  { min: 15, max: 40  },
-  // fish: { min: 8,  max: 25  },
+  woodplank: { min: 200, max: 400 },
+  ironingot: { min: 250, max: 500 },
+  goldingot: { min: 300, max: 600 },
+  diamond: { min: 350, max: 700 },
 };
 
 // ── ตั้งค่าเวลารีราคาตลาด (หน่วย: นาที) ──────

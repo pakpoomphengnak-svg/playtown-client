@@ -1,25 +1,9 @@
-// client/js/item/cash.js
-// ─────────────────────────────────────────────
-// ระบบเงินสองสกุล
-//
-//   Cash.add('cash', 500)         → เพิ่มเงินสด 500
-//   Cash.add('dirty_cash', 100)   → เพิ่มเงินสกปรก 100
-//   Cash.remove('cash', 200)      → ลดเงินสด 200 (คืน false ถ้าไม่พอ)
-//   Cash.get('cash')              → จำนวนเงินสดที่มีอยู่
-//   Cash.has('cash', 200)         → มีเงินสดอย่างน้อย 200 หรือไม่
-//
-// พกได้ไม่จำกัด (maxStack: Infinity) → ไม่แสดง /maxStack ในกระเป๋า
-// แสดงในกระเป๋าก็ต่อเมื่อมีเงินสกุลนั้นอยู่ และแสดงบนสุดเสมอ
-//
-// ต้องโหลดหลัง inventory.js
-// ─────────────────────────────────────────────
-
 ITEM_DEFS.cash = {
   id:          'cash',
   name:        'เงินสด',
   image:       'assets/items/cash.png',
   emoji:       '💵',
-  description: 'เงินสดที่ได้รับจากการทำงานหรือการค้าขาย',
+  description: '',
   maxStack:    Infinity,
   use() {
     Inventory._toast('เงินสดพกติดตัวไว้ใช้จ่าย', { icon: '💵', color: '#43a047' });
@@ -32,7 +16,7 @@ ITEM_DEFS.dirty_cash = {
   name:        'เงินสกปรก',
   image:       'assets/items/dirty-cash.png',
   emoji:       '🤑',
-  description: 'เงินที่มาจากแหล่งไม่ชัดเจน ควรฟอกก่อนใช้',
+  description: '',
   maxStack:    Infinity,
   use() {
     Inventory._toast('ต้องนำไปฟอกเงินก่อนใช้ได้', { icon: '🤑', color: '#f9a825' });
