@@ -39,27 +39,12 @@ const DataService = {
       hygiene: 100,
       brain:   100,
       stamina: 100,
-      money:   1000,
     };
   },
 
   savePlayer(playerData) {
     localStorage.setItem('player', JSON.stringify(playerData));
     this._markDirty('player');
-  },
-
-  // ─────────────────────────────────────────────
-  // MONEY
-  // ─────────────────────────────────────────────
-  addMoney(amount) {
-    const player = this.getPlayer();
-    player.money = (player.money || 0) + amount;
-    this.savePlayer(player);
-    console.log(`[DataService] เงิน: ${player.money}`);
-  },
-
-  getMoney() {
-    return this.getPlayer().money || 0;
   },
 
   // ─────────────────────────────────────────────

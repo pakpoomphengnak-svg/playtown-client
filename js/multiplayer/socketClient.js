@@ -15,6 +15,7 @@ const SocketClient = (() => {
     onPlayerJoined:  null,   // (player) → มีคนใหม่เข้ามา
     onPlayerMoved:   null,   // (data) → คนอื่นขยับ
     onPlayerLeft:    null,   // (data) → คนออกไป
+    onMarketPrices:  null,   // (data) → ราคาตลาดจาก server
   };
 
   // ── Connect ────────────────────────────────
@@ -68,6 +69,11 @@ const SocketClient = (() => {
     socket.on('playerLeft', (data) => {
       console.log(`[Socket] Left: ${data.id}`);
       if (_handlers.onPlayerLeft) _handlers.onPlayerLeft(data);
+    });
+
+    socket.on('marketPrices', (data) => {
+      console.log('[Socket] Market prices updated:', data.prices);
+      if (_handlers.onMarketPrices) _handlers.onMarketPrices(data);
     });
   }
 

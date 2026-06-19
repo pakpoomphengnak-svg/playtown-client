@@ -17,62 +17,52 @@ const MARKET_PRICE_RANGE = {
 // เช่น 5 = รีราคาทุก 5 นาที, 60 = รีราคาทุก 1 ชั่วโมง
 const MARKET_REROLL_MINUTES = 5;
 
+// ── ราคาตลาด: รับจาก server ผ่าน socket ──────
+// state เริ่มต้นเป็น null จนกว่าจะได้รับจาก server
+let _marketOpen = false;   // true เมื่อ overlay เปิดอยู่
+let _renderGrid = null;    // function สำหรับรีเฟรช grid
+
 const MARKET_PRICES = (function () {
-  const STORAGE_KEY  = 'market_prices_v1';
-  const REROLL_MS    = MARKET_REROLL_MINUTES * 60 * 1000;
-  const CHECK_MS     = Math.min(60 * 1000, REROLL_MS); // เช็คทุกนาที หรือถี่กว่านั้นถ้ารอบสั้นกว่า 1 นาที
+  const state = {
+    current:    null,   // { [itemId]: price }
+    rolledAt:   null,   // timestamp ที่ server roll ราคา
+    nextRollAt: null,   // timestamp ที่ server จะ roll ใหม่
+  };
 
-  function roll() {
-    const now    = Date.now();
-    const prices = {};
-    for (const [id, { min, max }] of Object.entries(MARKET_PRICE_RANGE)) {
-      prices[id] = Math.floor(Math.random() * (max - min + 1)) + min;
+  function applyServerPrices(data) {
+    const isFirstLoad = state.current === null;
+    state.current    = data.prices;
+    state.rolledAt   = data.rolledAt;
+    state.nextRollAt = data.nextRollAt;
+
+    if (!isFirstLoad) {
+      // แจ้งเตือนผู้เล่นว่าราคาตลาดรีใหม่แล้ว
+      try {
+        if (typeof Notification !== 'undefined') {
+          Notification.show('🏪 ราคาตลาดอัปเดตแล้ว!', { icon: '💱', color: '#43a047' });
+        }
+      } catch (_) {}
     }
-    try { DataService.saveData(STORAGE_KEY, { t: now, prices }); } catch (_) {}
-    return prices;
+    // รีเฟรช UI ถ้า overlay เปิดอยู่
+    if (_marketOpen && _renderGrid) _renderGrid();
   }
 
-  function load() {
-    try {
-      const raw = DataService.getData(STORAGE_KEY);
-      if (!raw) return roll();
-      const { t, prices } = raw;
-      if (Date.now() - t >= REROLL_MS) return roll();
-      // ถ้า key ใน cache ไม่ครบกับ MARKET_PRICE_RANGE → roll ใหม่
-      const cached = Object.keys(prices);
-      const expected = Object.keys(MARKET_PRICE_RANGE);
-      if (expected.some(k => !cached.includes(k))) return roll();
-      return prices;
-    } catch (_) { return roll(); }
+  // ผูก handler กับ SocketClient (รอให้ SocketClient พร้อมก่อน)
+  function bindSocket() {
+    if (typeof SocketClient !== 'undefined') {
+      SocketClient.on('onMarketPrices', applyServerPrices);
+    } else {
+      setTimeout(bindSocket, 100);
+    }
   }
+  bindSocket();
 
-  const state = { current: load() };
-
-  // แจ้งเตือนผู้เล่นว่าราคาตลาดรีใหม่แล้ว
-  function notifyRepriced() {
-    try {
-      if (typeof Notification !== 'undefined') {
-        Notification.show('🏪 ราคาตลาดอัปเดตแล้ว!', { icon: '💱', color: '#43a047' });
-      }
-    } catch (_) {}
-  }
-
-  // ตรวจเป็นระยะ ว่าถึงรอบรีราคาใหม่หรือยัง
-  setInterval(() => {
-    try {
-      const raw = DataService.getData(STORAGE_KEY);
-      if (!raw) { state.current = roll(); notifyRepriced(); return; }
-      const { t } = raw;
-      if (Date.now() - t >= REROLL_MS) {
-        state.current = roll();
-        notifyRepriced();
-      }
-    } catch (_) { state.current = roll(); notifyRepriced(); }
-  }, CHECK_MS);
-
-  // Proxy ให้ MARKET_PRICES[key] อ่านราคาปัจจุบันเสมอ
+  // Proxy: MARKET_PRICES[key] → ราคาปัจจุบันที่ได้จาก server
   return new Proxy(state, {
-    get(s, key) { return s.current[key]; },
+    get(s, key) {
+      if (key === '_state') return s;
+      return s.current ? s.current[key] : 0;
+    },
   });
 })();
 
@@ -386,17 +376,15 @@ const MARKET_PRICES = (function () {
 
   let _timerInterval = null;
   function startTimerBadge() {
-    const rerollMs = MARKET_REROLL_MINUTES * 60 * 1000;
     function tick() {
       try {
-        const raw = DataService.getData('market_prices_v1');
-        if (!raw) { timerBadge.textContent = ''; return; }
-        const { t } = raw;
-        const msLeft = rerollMs - (Date.now() - t);
+        const s = MARKET_PRICES._state;
+        if (!s || !s.nextRollAt) { timerBadge.textContent = ''; return; }
+        const msLeft = s.nextRollAt - Date.now();
         if (msLeft <= 0) { timerBadge.textContent = '⏳ กำลังอัปเดต...'; return; }
         const m = String(Math.floor(msLeft / 60000)).padStart(2, '0');
-        const s = String(Math.floor((msLeft % 60000) / 1000)).padStart(2, '0');
-        timerBadge.textContent = `⏱ ${m}:${s}`;
+        const sec = String(Math.floor((msLeft % 60000) / 1000)).padStart(2, '0');
+        timerBadge.textContent = `⏱ ${m}:${sec}`;
       } catch (_) { timerBadge.textContent = ''; }
     }
     tick();
@@ -469,9 +457,13 @@ const MARKET_PRICES = (function () {
   }
 
   // ── Open / Close Market ──────────────────────
+  // ผูก _renderGrid ให้ MARKET_PRICES ใช้รีเฟรช UI เมื่อได้รับราคาใหม่
+  _renderGrid = renderGrid;
+
   function openMarket() {
     selectedItemId = null;
     qtyPopup.style.display = 'none';
+    _marketOpen = true;
     refreshCashBadge();
     renderGrid();
     overlay.style.display = 'flex';
@@ -479,6 +471,7 @@ const MARKET_PRICES = (function () {
   }
 
   function closeMarket() {
+    _marketOpen = false;
     overlay.style.display = 'none';
     qtyPopup.style.display = 'none';
     selectedItemId = null;
