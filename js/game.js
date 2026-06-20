@@ -134,6 +134,8 @@ function animate() {
   if (typeof updateLogProgress === 'function') updateLogProgress(dt, elapsedTime);
   if (typeof updateRockPickups === 'function') updateRockPickups(dt, elapsedTime);
   if (typeof updateRockProgress === 'function') updateRockProgress(dt, elapsedTime);
+  if (typeof updateCementPickups === 'function') updateCementPickups(dt, elapsedTime);
+  if (typeof updateWirePickups === 'function') updateWirePickups(dt, elapsedTime);
   if (typeof updateMarket === 'function') updateMarket();
   if (typeof updateStore === 'function') updateStore();
   if (typeof updateDealership === 'function') updateDealership();

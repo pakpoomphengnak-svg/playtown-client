@@ -42,6 +42,8 @@ const INVENTORY_SORT_ORDER = [
   'ironingot',
   'goldingot',
   'diamond',
+  'cement',
+  'wire',
   'car_key',
   'safe_key',
 
