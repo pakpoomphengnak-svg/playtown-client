@@ -256,7 +256,7 @@ const Hotbar = {
         const icon = _itemIcon(def, 'hb-cell-icon');
         cell.appendChild(icon);
 
-        if (count > 0) {
+        if (count > 0 && def.maxStack !== 1) {
           const cnt = document.createElement('span');
           cnt.className = 'hb-cell-count';
           cnt.textContent = count;

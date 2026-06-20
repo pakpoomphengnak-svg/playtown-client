@@ -51,7 +51,11 @@ const POS_SEND_INTERVAL = 0.1; // วินาที (10 ครั้ง/วิ)
 
 // ── Multiplayer: บอกคนอื่นว่าเรากำลังโจมตี (ส่งครั้งเดียวตอนเริ่มท่า ไม่ส่งซ้ำทุกเฟรม) ──
 let _attackToSend = false;
-document.addEventListener('player-attack', () => { _attackToSend = true; });
+document.addEventListener('player-attack', () => {
+  _attackToSend = true;
+  // ── WeaponSystem: ตีด้วยอาวุธที่ถืออยู่ (ถ้ามี) ──
+  if (typeof WeaponSystem !== 'undefined') WeaponSystem.onAttack();
+});
 
 function animate() {
   requestAnimationFrame(animate);
@@ -114,6 +118,9 @@ function animate() {
   }
 
   if (typeof RemotePlayers !== 'undefined') RemotePlayers.update(dt);
+
+  // ── WeaponSystem cooldown tick ───────────────────────
+  if (typeof WeaponSystem !== 'undefined') WeaponSystem.update(dt);
 
   checkNearVehicle();
   if (typeof updateSafeBox === 'function') updateSafeBox();

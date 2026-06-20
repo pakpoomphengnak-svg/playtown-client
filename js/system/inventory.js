@@ -45,6 +45,10 @@ const INVENTORY_SORT_ORDER = [
   'car_key',
   'safe_key',
 
+  // ── อาวุธ ──
+  'bottle',
+  'poolcue',
+
   // ── เพิ่มไอเทมอื่น ๆ ที่นี่ตามลำดับที่ต้องการ ──
 ];
 // ═══════════════════════════════════════════════════════
@@ -724,9 +728,13 @@ const Inventory = {
 
         const countEl = document.createElement('span');
         countEl.className = 'inv-cell-count';
-        countEl.textContent = slot.meta && slot.meta.plate
-          ? slot.meta.plate
-          : (def && def.maxStack === Infinity) ? `${slot.count.toLocaleString()}` : (def ? `${slot.count}/${def.maxStack}` : `${slot.count}`);
+        // ไอเทม stack ไม่ได้ (maxStack === 1) ไม่ต้องโชว์ badge จำนวน (เว้นแต่มี plate เช่นกุญแจรถ)
+        const hideCount = def && def.maxStack === 1 && !(slot.meta && slot.meta.plate);
+        countEl.textContent = hideCount
+          ? ''
+          : slot.meta && slot.meta.plate
+            ? slot.meta.plate
+            : (def && def.maxStack === Infinity) ? `${slot.count.toLocaleString()}` : (def ? `${slot.count}/${def.maxStack}` : `${slot.count}`);
 
         const hint = document.createElement('div');
         hint.className = 'inv-cell-use-hint';
