@@ -27,6 +27,7 @@
 const INVENTORY_SORT_ORDER = [
   'cash',
   'dirty_cash',
+  'gachav1',
   'burger',
   'water_bottle',
   'coffee',
