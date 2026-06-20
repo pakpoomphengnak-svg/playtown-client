@@ -47,6 +47,7 @@ const RemoteVehicles = (() => {
     v.plate = data.plate;
     v.isRemote = true; // กัน updateVehicle()/checkNearVehicle() ของระบบเดิมไปยุ่งกับรถนี้โดยไม่ตั้งใจ
     v.driven = !!data.driverId; // ถ้ามีคนขับอยู่แล้วตอน spawn (เช่น currentVehicles ตอน join) กันคนอื่นเข้าซ้อน
+    v.locked = !!data.locked; // sync สถานะล็อกล่าสุดจาก server ตอน spawn
     if (typeof data.fuel === 'number') v.fuel = data.fuel;
 
     if (data.colorHex && typeof applyVehicleColor === 'function') {
@@ -96,6 +97,14 @@ const RemoteVehicles = (() => {
     const v = _isOwnVehicle(plate) ? _findInWorld(plate) : (_vehicles[plate] && _vehicles[plate].v);
     if (!v || typeof applyVehicleColor !== 'function') return;
     applyVehicleColor(v, colorHex);
+  }
+
+  // ── ล็อก/ปลดล็อกรถ (sync จาก server — รวมถึงรถของเราเองที่ล็อกจากอุปกรณ์อื่น) ──
+  function setLocked(plate, locked) {
+    const v = _isOwnVehicle(plate) ? _findInWorld(plate) : (_vehicles[plate] && _vehicles[plate].v);
+    if (!v) return;
+    v.locked = !!locked;
+    if (typeof updateVehicleLockUI === 'function') updateVehicleLockUI();
   }
 
   // ── เปลี่ยนคนขับ (มีคนขึ้น/ลงรถ) ──
@@ -181,6 +190,6 @@ const RemoteVehicles = (() => {
     for (const plate in _vehicles) despawn(plate);
   }
 
-  return { spawn, spawnAll, despawn, setColor, setDriver, updatePosition, update, clear };
+  return { spawn, spawnAll, despawn, setColor, setLocked, setDriver, updatePosition, update, clear };
 
 })();

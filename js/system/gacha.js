@@ -2,65 +2,65 @@ const GACHA_POOLS = {
   gachav1: [
     {
         itemId: 'cash',
-        minAmount: 100,
-        maxAmount: 1000,
+        minAmount: 10,
+        maxAmount: 100,
         weight: 30,
         rarity: 'common'
     },
     {
         itemId: 'woodplank',
         minAmount: 1,
-        maxAmount: 5,
+        maxAmount: 3,
         weight: 20,
         rarity: 'uncommon'
     },
     {
         itemId: 'ironingot',
         minAmount: 1,
-        maxAmount: 5,
+        maxAmount: 3,
         weight: 20,
         rarity: 'uncommon'
     },
     {
         itemId: 'goldingot',
         minAmount: 1,
-        maxAmount: 4,
+        maxAmount: 2,
         weight: 10,
         rarity: 'uncommon'
     },
     {
         itemId: 'dirty_cash',
-        minAmount: 10,
-        maxAmount: 100,
+        minAmount: 1,
+        maxAmount: 10,
         weight: 7,
         rarity: 'rare'
     },
     {
         itemId: 'cement',
         minAmount: 1,
-        maxAmount: 3,
+        maxAmount: 1,
         weight: 5,
         rarity: 'rare'
     },
     {
         itemId: 'wire',
         minAmount: 1,
-        maxAmount: 3,
+        maxAmount: 1,
         weight: 5, 
         rarity: 'rare'
     },
     {
         itemId: 'diamond',
         minAmount: 1,
-        maxAmount: 2,
-        weight: 2.5,
+        maxAmount: 1,
+        weight: 2.9,
         rarity: 'epic'
     },
     {
         itemId: 'r32_box',
         minAmount: 1,
         maxAmount: 1,
-        weight: 0.5,
+        weight: 0.1,
         rarity: 'legendary'
     },
   ],

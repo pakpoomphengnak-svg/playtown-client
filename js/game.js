@@ -249,6 +249,10 @@ if (typeof SocketClient !== 'undefined') {
     if (typeof RemoteVehicles !== 'undefined') RemoteVehicles.setColor(data.plate, data.colorHex);
   });
 
+  SocketClient.on('onVehicleLockChanged', (data) => {
+    if (typeof RemoteVehicles !== 'undefined') RemoteVehicles.setLocked(data.plate, data.locked);
+  });
+
   SocketClient.on('onVehicleDriverChanged', (data) => {
     if (typeof RemoteVehicles !== 'undefined') RemoteVehicles.setDriver(data);
   });

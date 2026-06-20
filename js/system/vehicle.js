@@ -9,7 +9,48 @@ let isInVehicle   = false;
 let nearbyVehicle = null;
 const ENTER_DIST  = 2.8;
 
+// ── ตัวคูณแปลงหน่วย: เกม 1 หน่วย/วินาที = 1 เมตร/วินาที ──
+// ปรับค่านี้ที่เดียว มีผลกับการแปลงความเร็วของรถทุกคันทั้งระบบ
+// (ใช้แปลง config.topSpeedKmh ของแต่ละรถ → maxSpeed หน่วยภายใน และใช้โชว์ค่าบน speedometer)
+const MS_TO_KMH = 4.0;
+
 const vehicles = [];
+
+// ─────────────────────────────────────────────
+// ล็อก/ปลดล็อกรถ
+// state เก็บแยกจาก Garage (plate → locked: boolean) ผ่าน DataService เหมือนกัน
+// ค่าเริ่มต้น (ยังไม่มี state) = ไม่ล็อก เพื่อไม่กระทบรถเก่าที่เคยเบิกไว้ก่อนมีระบบนี้
+// ─────────────────────────────────────────────
+const VehicleLock = {
+  STORAGE_KEY: 'vehicle_lock_v1',
+
+  _load() {
+    try {
+      const raw = DataService.getSetting(this.STORAGE_KEY, null);
+      return raw && typeof raw === 'object' ? raw : {};
+    } catch (_) {
+      return {};
+    }
+  },
+
+  _save(state) {
+    DataService.saveSetting(this.STORAGE_KEY, state);
+  },
+
+  isLocked(plate) {
+    if (!plate) return false;
+    const state = this._load();
+    return !!state[plate];
+  },
+
+  setLocked(plate, locked) {
+    if (!plate) return;
+    const state = this._load();
+    if (locked) state[plate] = true;
+    else delete state[plate];
+    this._save(state);
+  },
+};
 
 // ── สร้างรถ 1 คัน จาก type string ────────────
 // type: ชื่อประเภทรถ เช่น 'starter_car'
@@ -26,11 +67,18 @@ function makeVehicle(type, x, z, rotY = 0) {
   const colEntry = { x, z, r: 0.8, tag: 'vehicle', ref: mesh };
   colliders.push(colEntry);
 
+  // ── ความเร็วสูงสุด: รถกำหนดเป็น topSpeedKmh (km/h) ตรงๆ ในไฟล์ vehicle/*.js ──
+  // แปลงเป็นหน่วยภายใน (units/s) ที่จุดเดียวนี้ — ปรับ MS_TO_KMH ด้านบนมีผลกับรถทุกคัน
+  // ถ้า config ไหนยังเก่าและกำหนด maxSpeed (units/s) มาตรงๆ ก็ยังใช้ได้ (เผื่อความเข้ากันได้)
+  const resolvedMaxSpeed = (typeof config.topSpeedKmh === 'number')
+    ? config.topSpeedKmh / MS_TO_KMH
+    : (config.maxSpeed ?? 12);
+
   const v = {
     mesh, wheels, colEntry,
     x, z, rotY,
     speed:           0,
-    maxSpeed:        config.maxSpeed        ?? 12,
+    maxSpeed:        resolvedMaxSpeed,
     reverseSpeed:    config.reverseSpeed    ?? 4,
     accel:           config.accel           ?? 8,
     friction:        config.friction        ?? 4,
@@ -44,17 +92,29 @@ function makeVehicle(type, x, z, rotY = 0) {
   return v;
 }
 
-// ── ปุ่มขึ้นรถ/ลงรถ (ปุ่มเดียวกัน ตำแหน่งเดียวกัน สลับสถานะตาม isInVehicle) ──
-function makeVehicleButton() {
-  const div = document.createElement('div');
-  div.id = 'vehicle-btn';
-  Object.assign(div.style, {
+// ── Panel ปุ่มรถ: [ ขึ้น/ลง ] [ ล็อก/ปลดล็อก ] ──
+// แสดงเมื่อเข้าใกล้รถ (ระยะ ENTER_DIST) — ปุ่มล็อกโชว์เฉพาะรถที่เรามีกุญแจ (เป็นเจ้าของ) เท่านั้น
+// ปุ่มขึ้น/ลง: เดิม id="vehicle-btn" (คงไว้เพื่อความเข้ากันได้กับโค้ด/สไตล์เดิม)
+// ปุ่มล็อก/ปลดล็อก: ใหม่ id="vehicle-lock-btn"
+function makeVehiclePanel() {
+  const panel = document.createElement('div');
+  panel.id = 'vehicle-panel';
+  Object.assign(panel.style, {
     position: 'fixed', bottom: '50%', left: '10%', right: 'auto',
     transform: 'translateX(-50%)',
     display: 'none', zIndex: 999,
+    flexDirection: 'row', alignItems: 'center', gap: '14px',
     userSelect: 'none', WebkitUserSelect: 'none',
     WebkitTapHighlightColor: 'transparent',
-    cursor: 'pointer',
+  });
+
+  // ── ปุ่มขึ้น/ลง ──
+  const enterDiv = document.createElement('div');
+  enterDiv.id = 'vehicle-btn';
+  Object.assign(enterDiv.style, {
+    display: 'block', cursor: 'pointer',
+    userSelect: 'none', WebkitUserSelect: 'none',
+    WebkitTapHighlightColor: 'transparent',
   });
 
   const img = document.createElement('img');
@@ -65,20 +125,88 @@ function makeVehicleButton() {
     width: '50px', height: '50px',
     pointerEvents: 'none',
   });
-  div.appendChild(img);
+  enterDiv.appendChild(img);
 
-  const handlePress = () => {
+  const handleEnterPress = () => {
     if (isInVehicle) {
       const av = vehicles.find(v => v.localDriven);
       if (av) exitVehicle(av);
     } else if (nearbyVehicle) {
+      if (nearbyVehicle.locked) {
+        if (typeof Notification !== 'undefined') {
+          Notification.show('รถถูกล็อกอยู่ ปลดล็อกก่อนขึ้นรถ', { icon: '🔒', color: '#f44336' });
+        }
+        return;
+      }
       enterVehicle(nearbyVehicle);
     }
   };
-  div.addEventListener('touchstart', e => { e.preventDefault(); e.stopPropagation(); handlePress(); }, { passive: false });
-  div.addEventListener('click', e => { e.stopPropagation(); handlePress(); });
-  document.body.appendChild(div);
-  return div;
+  enterDiv.addEventListener('touchstart', e => { e.preventDefault(); e.stopPropagation(); handleEnterPress(); }, { passive: false });
+  enterDiv.addEventListener('click', e => { e.stopPropagation(); handleEnterPress(); });
+
+  // ── ปุ่มล็อก/ปลดล็อก ──
+  const lockDiv = document.createElement('div');
+  lockDiv.id = 'vehicle-lock-btn';
+  Object.assign(lockDiv.style, {
+    display: 'none', cursor: 'pointer',
+    width: '50px', height: '50px',
+    borderRadius: '50%',
+    background: 'rgba(0,0,0,0.55)',
+    border: '2px solid #FDF6E3',
+    alignItems: 'center', justifyContent: 'center',
+    fontSize: '22px',
+    userSelect: 'none', WebkitUserSelect: 'none',
+    WebkitTapHighlightColor: 'transparent',
+  });
+  lockDiv.textContent = '🔓';
+
+  const handleLockPress = () => {
+    const v = (isInVehicle ? vehicles.find(veh => veh.localDriven) : nearbyVehicle);
+    toggleVehicleLock(v);
+  };
+  lockDiv.addEventListener('touchstart', e => { e.preventDefault(); e.stopPropagation(); handleLockPress(); }, { passive: false });
+  lockDiv.addEventListener('click', e => { e.stopPropagation(); handleLockPress(); });
+
+  panel.appendChild(enterDiv);
+  panel.appendChild(lockDiv);
+  document.body.appendChild(panel);
+  return { panel, enterDiv, lockDiv };
+}
+
+// ── สลับล็อก/ปลดล็อกของรถ v (ต้องมีกุญแจ) — อัปเดตทันที (optimistic) + บันทึก + แจ้ง server ──
+function toggleVehicleLock(v) {
+  if (!v || !v.plate) return;
+  if (!Garage._hasKeyFor(v.plate)) return; // กันเผื่อ: ไม่มีกุญแจ ล็อกไม่ได้
+
+  const locked = !v.locked;
+  v.locked = locked;
+  VehicleLock.setLocked(v.plate, locked); // บันทึกไว้ใช้ตอนเบิกรถครั้งถัดไป/ออฟไลน์
+  updateVehicleLockUI();
+
+  if (typeof SocketClient !== 'undefined' && SocketClient.isConnected()) {
+    SocketClient.vehicleLock(v.plate, locked);
+  }
+
+  if (typeof Notification !== 'undefined') {
+    Notification.show(locked ? 'ล็อกรถแล้ว' : 'ปลดล็อกรถแล้ว', {
+      icon: locked ? '🔒' : '🔓',
+      color: locked ? '#f44336' : '#4CAF50',
+    });
+  }
+  // ถ้าล็อกรถขณะกำลังขับอยู่ ไม่ต้องไล่ผู้เล่นออกจากรถ — ล็อกมีผลตอน "ลง" ไปแล้วเท่านั้น
+}
+
+// ── อัปเดตหน้าตาปุ่มล็อก (ไอคอน/สี) ให้ตรงกับ state ปัจจุบันของรถเป้าหมาย ──
+function updateVehicleLockUI() {
+  const v = (isInVehicle ? vehicles.find(veh => veh.localDriven) : nearbyVehicle);
+  if (!v || !v.plate || !Garage._hasKeyFor(v.plate)) {
+    vehicleLockBtnEl.style.display = 'none';
+    return;
+  }
+  const locked = !!v.locked;
+  vehicleLockBtnEl.style.display    = 'flex';
+  vehicleLockBtnEl.textContent      = locked ? '🔒' : '🔓';
+  vehicleLockBtnEl.style.borderColor = locked ? '#f44336' : '#FDF6E3';
 }
 
 // ── Speedometer + Fuel Gauge ────────────────────
@@ -180,7 +308,7 @@ function makeSpeedometer() {
   // self-update loop
   setInterval(() => {
     const driven = vehicles.find(v => v.localDriven);
-    const spd    = driven ? Math.round(Math.abs(driven.speed) * 3.6) : 0;
+    const spd    = driven ? Math.round(Math.abs(driven.speed) * MS_TO_KMH) : 0;
     valEl.textContent = spd;
     el.style.opacity  = driven ? '1' : '0';
 
@@ -225,7 +353,7 @@ function makeFuelWarning() {
 }
 const fuelWarningEl = makeFuelWarning();
 
-const vehicleBtnEl  = makeVehicleButton();
+const { panel: vehiclePanelEl, enterDiv: vehicleBtnEl, lockDiv: vehicleLockBtnEl } = makeVehiclePanel();
 const speedometerEl = makeSpeedometer();
 
 // ── D-Pad สำหรับขับรถ ──────────────────────────
@@ -301,7 +429,8 @@ function enterVehicle(v) {
   v.localDriven  = true; // คันนี้คือคันที่ "เรา" กำลังขับอยู่ (ต่างจาก driven ที่หมายถึง "มีคนขับอยู่" เฉยๆ รวมถึงคนอื่น)
   nearbyVehicle = null;
   charGroup.visible               = false;
-  vehicleBtnEl.style.display      = 'block';
+  vehiclePanelEl.style.display    = 'flex';
+  updateVehicleLockUI();
   dpadTurnEl.style.display  = 'flex';
   dpadDriveEl.style.display = 'flex';
   document.getElementById('joystick-zone').style.display = 'none';
@@ -330,7 +459,7 @@ function exitVehicle(v, force) {
   Player.z = v.mesh.position.z - Math.sin(v.rotY) * 2.2;
   charGroup.position.set(Player.x, 0.02, Player.z);
   charGroup.visible               = true;
-  vehicleBtnEl.style.display      = 'none';
+  vehiclePanelEl.style.display    = 'none';
   dpadTurnEl.style.display  = 'none';
   dpadDriveEl.style.display = 'none';
   // ── เคลียร์ dpad input ค้างเสมอ ──
@@ -440,7 +569,8 @@ function checkNearVehicle() {
     if (Math.sqrt(dx * dx + dz * dz) <= ENTER_DIST) { found = v; break; }
   }
   nearbyVehicle = found;
-  vehicleBtnEl.style.display = found ? 'block' : 'none';
+  vehiclePanelEl.style.display = found ? 'flex' : 'none';
+  updateVehicleLockUI();
 }
 
 // ── เติมน้ำมัน (เรียกจาก gas_station.js) ────────
@@ -469,15 +599,28 @@ setInterval(() => {
   } catch (_) {}
 }, 5000);
 
-// ── keyboard E ─────────────────────────────────
+// ── keyboard E (ขึ้น/ลงรถ) ─────────────────────
 window.addEventListener('keydown', e => {
   if (e.code !== 'KeyE') return;
   if (isInVehicle) {
     const av = vehicles.find(v => v.localDriven);
     if (av) exitVehicle(av);
   } else if (nearbyVehicle) {
+    if (nearbyVehicle.locked) {
+      if (typeof Notification !== 'undefined') {
+        Notification.show('รถถูกล็อกอยู่ ปลดล็อกก่อนขึ้นรถ', { icon: '🔒', color: '#f44336' });
+      }
+      return;
+    }
     enterVehicle(nearbyVehicle);
   }
+});
+
+// ── keyboard L (ล็อก/ปลดล็อกรถ) ─────────────────
+window.addEventListener('keydown', e => {
+  if (e.code !== 'KeyL') return;
+  const v = isInVehicle ? vehicles.find(veh => veh.localDriven) : nearbyVehicle;
+  toggleVehicleLock(v);
 });
 
 // ── ขึ้นรถได้ทางเดียวบนมือถือ: กดปุ่ม "ขึ้นรถ" เท่านั้น (ดู makeEnterButton ด้านบน) ──

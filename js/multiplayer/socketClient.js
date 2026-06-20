@@ -20,6 +20,7 @@ const SocketClient = (() => {
     onVehicleSpawned:      null, // (vehicle) → มีคนเบิกรถออกมาในโลก
     onVehicleDespawned:    null, // ({plate}) → รถถูกเก็บเข้าการาจ
     onVehicleColorChanged: null, // ({plate, colorHex}) → มีคนเปลี่ยนสีรถ
+    onVehicleLockChanged:  null, // ({plate, locked}) → มีคนล็อก/ปลดล็อกรถ
     onVehicleDriverChanged:null, // ({plate, driverId, x?, z?, rotY?}) → มีคนขึ้น/ลงรถ
     onVehicleMoved:        null, // ({plate, x, z, rotY, speed, fuel}) → รถที่มีคนขับอยู่ขยับ
   };
@@ -100,6 +101,10 @@ const SocketClient = (() => {
       if (_handlers.onVehicleColorChanged) _handlers.onVehicleColorChanged(data);
     });
 
+    socket.on('vehicleLockChanged', (data) => {
+      if (_handlers.onVehicleLockChanged) _handlers.onVehicleLockChanged(data);
+    });
+
     socket.on('vehicleDriverChanged', (data) => {
       if (_handlers.onVehicleDriverChanged) _handlers.onVehicleDriverChanged(data);
     });
@@ -140,6 +145,12 @@ const SocketClient = (() => {
     socket.emit('vehicleColor', { plate, colorHex });
   }
 
+  // ── Vehicle: ล็อก/ปลดล็อกรถ ────────────────
+  function vehicleLock(plate, locked) {
+    if (!socket || !socket.connected) return;
+    socket.emit('vehicleLock', { plate, locked });
+  }
+
   // ── Vehicle: ขึ้นรถ (เป็นคนขับ) ────────────
   function vehicleEnter(plate) {
     if (!socket || !socket.connected) return;
@@ -170,7 +181,7 @@ const SocketClient = (() => {
 
   return {
     connect, joinGame, sendPosition, on, getSelfId, isConnected,
-    vehicleRetrieve, vehicleStore, vehicleColor, vehicleEnter, vehicleExit, sendVehiclePosition,
+    vehicleRetrieve, vehicleStore, vehicleColor, vehicleLock, vehicleEnter, vehicleExit, sendVehiclePosition,
   };
 
 })();

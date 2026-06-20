@@ -195,6 +195,10 @@ const Garage = {
       delete state[plate];
       this._save(state);
     }
+    // ── เคลียร์สถานะล็อกของทะเบียนนี้ด้วย (กันข้อมูลค้างเวลาขาย/เสียกรรมสิทธิ์) ──
+    if (typeof VehicleLock !== 'undefined' && typeof VehicleLock.setLocked === 'function') {
+      VehicleLock.setLocked(plate, false);
+    }
   },
 
   // ── force-park: เก็บรถเข้าการาจทันที ไม่เช็คโซน ──
@@ -282,6 +286,11 @@ const Garage = {
     // ── โหลดน้ำมันที่บันทึกไว้ของรถคันนี้ ──
     if (typeof vState.fuel === 'number') {
       v.fuel = vState.fuel;
+    }
+
+    // ── restore สถานะล็อกที่เคยตั้งไว้ (เก็บแยกผ่าน VehicleLock, ใช้ได้แม้ออฟไลน์) ──
+    if (typeof VehicleLock !== 'undefined') {
+      v.locked = VehicleLock.isLocked(plate);
     }
 
     // ── restore สีตัวถังที่เคยแต่งไว้ ──
