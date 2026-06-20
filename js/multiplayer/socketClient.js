@@ -16,6 +16,12 @@ const SocketClient = (() => {
     onPlayerMoved:   null,   // (data) → คนอื่นขยับ
     onPlayerLeft:    null,   // (data) → คนออกไป
     onMarketPrices:  null,   // (data) → ราคาตลาดจาก server
+    onCurrentVehicles:     null, // (vehicles[]) → รถทุกคันที่อยู่ในโลกอยู่แล้ว (ตอน connect)
+    onVehicleSpawned:      null, // (vehicle) → มีคนเบิกรถออกมาในโลก
+    onVehicleDespawned:    null, // ({plate}) → รถถูกเก็บเข้าการาจ
+    onVehicleColorChanged: null, // ({plate, colorHex}) → มีคนเปลี่ยนสีรถ
+    onVehicleDriverChanged:null, // ({plate, driverId, x?, z?, rotY?}) → มีคนขึ้น/ลงรถ
+    onVehicleMoved:        null, // ({plate, x, z, rotY, speed, fuel}) → รถที่มีคนขับอยู่ขยับ
   };
 
   // ── Connect ────────────────────────────────
@@ -75,6 +81,32 @@ const SocketClient = (() => {
       console.log('[Socket] Market prices updated:', data.prices);
       if (_handlers.onMarketPrices) _handlers.onMarketPrices(data);
     });
+
+    // ── Vehicle Events ───────────────────────
+    socket.on('currentVehicles', (vehicleList) => {
+      console.log(`[Socket] Vehicles in world: ${vehicleList.length}`);
+      if (_handlers.onCurrentVehicles) _handlers.onCurrentVehicles(vehicleList);
+    });
+
+    socket.on('vehicleSpawned', (vehicle) => {
+      if (_handlers.onVehicleSpawned) _handlers.onVehicleSpawned(vehicle);
+    });
+
+    socket.on('vehicleDespawned', (data) => {
+      if (_handlers.onVehicleDespawned) _handlers.onVehicleDespawned(data);
+    });
+
+    socket.on('vehicleColorChanged', (data) => {
+      if (_handlers.onVehicleColorChanged) _handlers.onVehicleColorChanged(data);
+    });
+
+    socket.on('vehicleDriverChanged', (data) => {
+      if (_handlers.onVehicleDriverChanged) _handlers.onVehicleDriverChanged(data);
+    });
+
+    socket.on('vehicleMoved', (data) => {
+      if (_handlers.onVehicleMoved) _handlers.onVehicleMoved(data);
+    });
   }
 
   // ── Join เกมหลัง connect แล้ว ─────────────
@@ -84,9 +116,46 @@ const SocketClient = (() => {
   }
 
   // ── ส่งตำแหน่งไปยัง server ─────────────────
-  function sendPosition(x, z, rotY, isInVehicle = false, vehicleId = null, isSprinting = false, isAttacking = false) {
+  // weaponId: id ของอาวุธที่ถืออยู่ (จาก WEAPON_DEFS) หรือ null ถ้าไม่ได้ถือ
+  function sendPosition(x, z, rotY, isInVehicle = false, vehicleId = null, isSprinting = false, isAttacking = false, weaponId = null) {
     if (!socket || !socket.connected) return;
-    socket.emit('updatePosition', { x, z, rotY, isInVehicle, vehicleId, isSprinting, isAttacking });
+    socket.emit('updatePosition', { x, z, rotY, isInVehicle, vehicleId, isSprinting, isAttacking, weaponId });
+  }
+
+  // ── Vehicle: เบิกรถออกจากการาจ (แจ้ง server หลัง local spawn สำเร็จ) ──
+  function vehicleRetrieve(plate, type, x, z, rotY, fuel) {
+    if (!socket || !socket.connected) return;
+    socket.emit('vehicleRetrieve', { plate, type, x, z, rotY, fuel });
+  }
+
+  // ── Vehicle: เก็บรถเข้าการาจ ──────────────
+  function vehicleStore(plate) {
+    if (!socket || !socket.connected) return;
+    socket.emit('vehicleStore', { plate });
+  }
+
+  // ── Vehicle: เปลี่ยนสีรถ (tuning) ──────────
+  function vehicleColor(plate, colorHex) {
+    if (!socket || !socket.connected) return;
+    socket.emit('vehicleColor', { plate, colorHex });
+  }
+
+  // ── Vehicle: ขึ้นรถ (เป็นคนขับ) ────────────
+  function vehicleEnter(plate) {
+    if (!socket || !socket.connected) return;
+    socket.emit('vehicleEnter', { plate });
+  }
+
+  // ── Vehicle: ลงรถ (เลิกเป็นคนขับ) ──────────
+  function vehicleExit(plate, x, z, rotY) {
+    if (!socket || !socket.connected) return;
+    socket.emit('vehicleExit', { plate, x, z, rotY });
+  }
+
+  // ── Vehicle: ส่งตำแหน่งรถระหว่างขับ (throttled เหมือน sendPosition) ──
+  function sendVehiclePosition(plate, x, z, rotY, speed, fuel) {
+    if (!socket || !socket.connected) return;
+    socket.emit('updateVehiclePosition', { plate, x, z, rotY, speed, fuel });
   }
 
   // ── ผูก event handlers ─────────────────────
@@ -99,6 +168,9 @@ const SocketClient = (() => {
   function getSelfId()   { return _selfId; }
   function isConnected() { return socket && socket.connected; }
 
-  return { connect, joinGame, sendPosition, on, getSelfId, isConnected };
+  return {
+    connect, joinGame, sendPosition, on, getSelfId, isConnected,
+    vehicleRetrieve, vehicleStore, vehicleColor, vehicleEnter, vehicleExit, sendVehiclePosition,
+  };
 
 })();

@@ -84,7 +84,7 @@ function animate() {
   const speed = actualSprinting ? Player.sprintSpeed : Player.walkSpeed;
 
   if (isInVehicle) {
-    const activeVehicle = vehicles.find(v => v.driven);
+    const activeVehicle = vehicles.find(v => v.localDriven);
     if (activeVehicle) {
       const vmx = dpadInput.mx || move.x || kx;
       const vmy = dpadInput.my || move.y || ky;
@@ -118,6 +118,7 @@ function animate() {
   }
 
   if (typeof RemotePlayers !== 'undefined') RemotePlayers.update(dt);
+  if (typeof RemoteVehicles !== 'undefined') RemoteVehicles.update(dt);
 
   // ── WeaponSystem cooldown tick ───────────────────────
   if (typeof WeaponSystem !== 'undefined') WeaponSystem.update(dt);
@@ -145,7 +146,7 @@ function animate() {
   if (typeof updateMinimap === 'function') updateMinimap(dt);
 
   // ── กล้อง ───────────────────────────────────
-  const activeV   = vehicles.find(v => v.driven);
+  const activeV   = vehicles.find(v => v.localDriven);
   const camTarget = isInVehicle && activeV ? activeV.mesh : charGroup;
 
   const cx = camTarget.position.x + Math.sin(camYaw) * Math.cos(camPitch) * camDist;
@@ -165,7 +166,8 @@ function animate() {
     _posSendTimer += dt;
     if (_posSendTimer >= POS_SEND_INTERVAL) {
       _posSendTimer = 0;
-      const activeVehicleForPos = vehicles.find(v => v.driven);
+      const activeVehicleForPos = vehicles.find(v => v.localDriven);
+      const equippedWeapon = (typeof WeaponSystem !== 'undefined') ? WeaponSystem.getEquipped() : null;
       SocketClient.sendPosition(
         Player.x,
         Player.z,
@@ -173,9 +175,22 @@ function animate() {
         isInVehicle,
         activeVehicleForPos ? activeVehicleForPos.mesh.uuid : null,
         actualSprinting,
-        _attackToSend
+        _attackToSend,
+        equippedWeapon ? equippedWeapon.id : null
       );
       _attackToSend = false; // ส่งครั้งเดียวพอ ไม่ต้องส่งซ้ำทุก tick
+
+      // ── ถ้ากำลังขับรถอยู่ ส่งตำแหน่งรถคันนั้นไปด้วย (ให้คนอื่นเห็นรถเราขยับ) ──
+      if (activeVehicleForPos && activeVehicleForPos.plate) {
+        SocketClient.sendVehiclePosition(
+          activeVehicleForPos.plate,
+          activeVehicleForPos.mesh.position.x,
+          activeVehicleForPos.mesh.position.z,
+          activeVehicleForPos.rotY,
+          activeVehicleForPos.speed,
+          activeVehicleForPos.fuel
+        );
+      }
     }
   }
 
@@ -216,6 +231,30 @@ if (typeof SocketClient !== 'undefined') {
 
   SocketClient.on('onPlayerLeft', (data) => {
     if (typeof RemotePlayers !== 'undefined') RemotePlayers.remove(data.id);
+  });
+
+  SocketClient.on('onCurrentVehicles', (vehicleList) => {
+    if (typeof RemoteVehicles !== 'undefined') RemoteVehicles.spawnAll(vehicleList);
+  });
+
+  SocketClient.on('onVehicleSpawned', (vehicle) => {
+    if (typeof RemoteVehicles !== 'undefined') RemoteVehicles.spawn(vehicle);
+  });
+
+  SocketClient.on('onVehicleDespawned', (data) => {
+    if (typeof RemoteVehicles !== 'undefined') RemoteVehicles.despawn(data.plate);
+  });
+
+  SocketClient.on('onVehicleColorChanged', (data) => {
+    if (typeof RemoteVehicles !== 'undefined') RemoteVehicles.setColor(data.plate, data.colorHex);
+  });
+
+  SocketClient.on('onVehicleDriverChanged', (data) => {
+    if (typeof RemoteVehicles !== 'undefined') RemoteVehicles.setDriver(data);
+  });
+
+  SocketClient.on('onVehicleMoved', (data) => {
+    if (typeof RemoteVehicles !== 'undefined') RemoteVehicles.updatePosition(data);
   });
 
   SocketClient.on('onSelfId', () => {

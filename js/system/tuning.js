@@ -395,6 +395,11 @@ window.TuningRestoreColor = restoreVehicleColor;
       // บันทึก
       if (targetVehicle.plate) {
         _saveTuningColor(targetVehicle.plate, col.hex);
+
+        // ── แจ้ง server ว่ารถคันนี้เปลี่ยนสี (ให้คนอื่นเห็นสีตรงกัน) ──
+        if (typeof SocketClient !== 'undefined' && SocketClient.isConnected()) {
+          SocketClient.vehicleColor(targetVehicle.plate, col.hex);
+        }
       }
 
       if (typeof Notification !== 'undefined') {

@@ -180,6 +180,11 @@ const Garage = {
     if (vIdx !== -1) vehicles.splice(vIdx, 1);
     if (nearbyVehicle === v) nearbyVehicle = null;
 
+    // ── แจ้ง server ว่ารถคันนี้ออกจากโลกแล้ว (เช่นกรณี force-park ตอนปิดแท็บ หรือขายรถ) ──
+    if (typeof SocketClient !== 'undefined' && SocketClient.isConnected()) {
+      SocketClient.vehicleStore(plate);
+    }
+
     return true;
   },
 
@@ -211,9 +216,10 @@ const Garage = {
     return removed;
   },
 
-  // ── force-park รถทุกคัน ──
+  // ── force-park รถทุกคัน "ที่เราเป็นเจ้าของ" เท่านั้น ──
+  // (ไม่แตะรถของผู้เล่นคนอื่นที่บังเอิญอยู่ในโลกเดียวกัน แม้จะจอดอยู่ในวงเก็บรถตอนนี้ก็ตาม)
   forceStoreAll() {
-    const plates = vehicles.map(v => v.plate).filter(Boolean);
+    const plates = vehicles.map(v => v.plate).filter(Boolean).filter(plate => this._hasKeyFor(plate));
     plates.forEach(plate => this.forceStoreVehicle(plate));
 
     const state = this._load();
@@ -287,6 +293,11 @@ const Garage = {
     vState.x = spot.x; vState.z = spot.z; vState.rotY = spot.rotY;
     this._save(state);
 
+    // ── แจ้ง server ว่ารถคันนี้ถูกเบิกออกมา (ให้คนอื่นเห็นรถคันนี้ในโลกด้วย) ──
+    if (typeof SocketClient !== 'undefined' && SocketClient.isConnected()) {
+      SocketClient.vehicleRetrieve(plate, record.type, spot.x, spot.z, spot.rotY, v.fuel);
+    }
+
     const item = DEALERSHIP_CATALOG[record.type];
     if (typeof Notification !== 'undefined') {
       Notification.showItemCard({ type: 'gain', emoji: '🚗', itemName: item ? item.name : record.type, amount: plate });
@@ -299,8 +310,14 @@ const Garage = {
     return { ok: true };
   },
 
-  // ── เก็บรถ: รถต้องอยู่ในวงเก็บรถของการาจแห่งใดแห่งหนึ่ง ──
+  // ── เก็บรถ: รถต้องอยู่ในวงเก็บรถของการาจแห่งใดแห่งหนึ่ง + ต้องมีกุญแจรถคันนี้ ──
+  // (ใครก็ขับรถที่จอดอยู่ในโลกได้ เหมือนรถสาธารณะ แต่เก็บเข้าการาจได้แค่เจ้าของที่มีกุญแจเท่านั้น
+  //  กันคนอื่นแกล้งเอารถที่ไม่ใช่ของตัวเองไปเก็บ ทำให้เจ้าของตัวจริงเบิกรถตัวเองไม่ได้)
   storeVehicle(plate) {
+    if (!this._hasKeyFor(plate)) {
+      return { ok: false, reason: `ต้องมีกุญแจรถทะเบียน ${plate} ถึงจะเก็บรถคันนี้ได้ 🔑` };
+    }
+
     const v = this._findSpawned(plate);
     if (!v) return { ok: false, reason: 'ไม่พบรถคันนี้ในโลก' };
 
@@ -326,6 +343,11 @@ const Garage = {
     // ── บันทึกน้ำมันของรถคันนี้ก่อนเก็บ ──
     if (typeof v.fuel === 'number') vState.fuel = v.fuel;
     this._save(state);
+
+    // ── แจ้ง server ว่ารถคันนี้ถูกเก็บแล้ว (ให้คนอื่นเอารถออกจากโลกของตัวเองด้วย) ──
+    if (typeof SocketClient !== 'undefined' && SocketClient.isConnected()) {
+      SocketClient.vehicleStore(plate);
+    }
 
     const owned = Dealership.getOwnedVehicles();
     const record = owned.find(o => o.plate === plate);
@@ -733,7 +755,7 @@ const Garage = {
 
     // ── เก็บรถอัตโนมัติ: ขับรถเข้าวงเก็บรถใดก็ได้ → เก็บทันที ──
     if (inStoreZone && isInVehicle && !_autoStoreCooldown) {
-      const drivenVehicle = vehicles.find(v => v.driven);
+      const drivenVehicle = vehicles.find(v => v.localDriven);
       if (drivenVehicle && drivenVehicle.plate) {
         _autoStoreCooldown = true;
         exitVehicle(drivenVehicle);

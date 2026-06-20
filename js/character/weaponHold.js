@@ -17,6 +17,7 @@ const WeaponHold = {
 
   /**
    * เคลียร์ geometry/material ทั้งหมดใน object3D แบบ recursive (กัน memory leak)
+   * (static เพราะ RemotePlayers เอาไปใช้ตอน detach โมเดลอาวุธของผู้เล่นคนอื่นด้วย)
    */
   _disposeDeep(obj) {
     obj.traverse((node) => {
@@ -32,21 +33,16 @@ const WeaponHold = {
   },
 
   /**
-   * สร้างโมเดล 3D จาก weaponDef.createModel() แล้วแปะเข้ามือ (armR)
+   * สร้างโมเดล 3D จาก weaponDef.createModel() แล้วคืนกลับมา พร้อม set ตำแหน่ง/มุมในมือ
+   * ใช้ร่วมกันได้ทั้ง local (attach ด้านล่าง) และ remote players (remotePlayers.js)
    * @param {Object} def - weaponDef จาก WEAPON_DEFS
+   * @returns {THREE.Object3D|null}
    */
-  attach(def) {
-    if (!def || typeof def.createModel !== 'function') return;
-    if (typeof armR === 'undefined' || !armR) return;
-
-    // ถืออาวุธชิ้นเดิมอยู่แล้ว ไม่ต้องสร้างใหม่
-    if (this._currentId === def.id && this._model) return;
-
-    // ถอดอันเก่าก่อน (ถ้ามี)
-    this.detach();
+  buildModel(def) {
+    if (!def || typeof def.createModel !== 'function') return null;
 
     const model = def.createModel();
-    if (!model) return;
+    if (!model) return null;
 
     model.traverse((node) => {
       if (node.isMesh) node.castShadow = true;
@@ -60,13 +56,33 @@ const WeaponHold = {
     model.position.set(off.x, off.y, off.z);
     model.rotation.set(rot.x, rot.y, rot.z);
 
+    return model;
+  },
+
+  /**
+   * สร้างโมเดล 3D จาก weaponDef.createModel() แล้วแปะเข้ามือ (armL ของผู้เล่น local)
+   * @param {Object} def - weaponDef จาก WEAPON_DEFS
+   */
+  attach(def) {
+    if (!def) return;
+    if (typeof armL === 'undefined' || !armL) return;
+
+    // ถืออาวุธชิ้นเดิมอยู่แล้ว ไม่ต้องสร้างใหม่
+    if (this._currentId === def.id && this._model) return;
+
+    // ถอดอันเก่าก่อน (ถ้ามี)
+    this.detach();
+
+    const model = this.buildModel(def);
+    if (!model) return;
+
     armL.add(model);
 
     this._model = model;
     this._currentId = def.id;
   },
 
-  /** ถอดโมเดลอาวุธออกจากมือ */
+  /** ถอดโมเดลอาวุธออกจากมือ (ผู้เล่น local) */
   detach() {
     if (this._model) {
       if (this._model.parent) this._model.parent.remove(this._model);

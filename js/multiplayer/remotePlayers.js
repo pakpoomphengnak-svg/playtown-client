@@ -69,12 +69,54 @@ const RemotePlayers = (() => {
       targetRotY: player.rotY || 0,
       lastX: player.x,
       lastZ: player.z,
+      weaponId: null,       // weaponId ที่ถืออยู่ตอนนี้ | null
+      weaponModel: null,    // THREE.Object3D ของโมเดลอาวุธที่แปะอยู่ | null
+      isInVehicle: false,
     };
+
+    // ถ้าผู้เล่นคนนี้ join มาพร้อมถืออาวุธอยู่แล้ว (เช่นกรณี currentPlayers ตอนเข้าฉากครั้งแรก)
+    if (player.weaponId) _setWeapon(_players[player.id], player.weaponId);
+
+    // ถ้าผู้เล่นคนนี้กำลังขับรถอยู่แล้วตอนเราเพิ่ง join เข้ามา → ซ่อนโมเดลตัวละครไว้ก่อน
+    if (player.isInVehicle) {
+      _players[player.id].isInVehicle = true;
+      group.visible = false;
+    }
   }
 
   // ── เพิ่มหลายคนพร้อมกัน (ตอน join ครั้งแรก ได้ currentPlayers ทั้งหมด) ──
   function addAll(players) {
     players.forEach(add);
+  }
+
+  // ── แปะ/ถอดโมเดลอาวุธของผู้เล่นคนอื่น ตาม weaponId ที่ได้จาก server ──
+  // ใช้ WeaponHold.buildModel() + WEAPON_DEFS ตัวเดียวกับฝั่ง local (weaponHold.js)
+  // เพื่อให้โมเดล/ตำแหน่ง/มุมในมือตรงกันทุกที่
+  function _setWeapon(entry, weaponId) {
+    if (entry.weaponId === (weaponId || null)) return; // ไม่เปลี่ยน ไม่ต้องทำอะไร
+
+    // ถอดโมเดลเก่าก่อน (ถ้ามี)
+    if (entry.weaponModel) {
+      if (entry.weaponModel.parent) entry.weaponModel.parent.remove(entry.weaponModel);
+      if (typeof WeaponHold !== 'undefined' && WeaponHold._disposeDeep) {
+        WeaponHold._disposeDeep(entry.weaponModel);
+      }
+      entry.weaponModel = null;
+    }
+    entry.weaponId = null;
+
+    if (!weaponId) return; // unequip แล้ว ไม่ต้องแปะอะไรใหม่
+
+    const def = (typeof WEAPON_DEFS !== 'undefined') ? WEAPON_DEFS[weaponId] : null;
+    const armPart = entry.parts && entry.parts.armL;
+    if (!def || !armPart || typeof WeaponHold === 'undefined') return;
+
+    const model = WeaponHold.buildModel(def);
+    if (!model) return;
+
+    armPart.add(model);
+    entry.weaponModel = model;
+    entry.weaponId = weaponId;
   }
 
   // ── อัปเดตตำแหน่งเป้าหมาย (จะ smooth ไปหาใน update()) ──
@@ -88,12 +130,30 @@ const RemotePlayers = (() => {
     if (data.isAttacking && typeof entry.animState.attackTimer === 'number') {
       entry.animState.attackTimer = (typeof ATTACK_DURATION !== 'undefined') ? ATTACK_DURATION : 0.8;
     }
+    if ('weaponId' in data) _setWeapon(entry, data.weaponId);
+
+    // ── กำลังขับรถอยู่หรือไม่ (ตำแหน่ง/การขยับของรถคันนั้นจัดการโดย RemoteVehicles แยกต่างหาก) ──
+    // ซ่อนโมเดลตัวละครไว้ตอนขับรถ กันไม่ให้เห็นคนยืนซ้อนรถ
+    const wasInVehicle = entry.isInVehicle;
+    entry.isInVehicle = !!data.isInVehicle;
+    entry.group.visible = !entry.isInVehicle;
+
+    // ── เพิ่งลงจากรถ (true → false): วาง mesh ตัวละครที่ตำแหน่งรถตอนลง กันเดิน "lerp" ข้ามแผนที่จากจุดเดิมก่อนขึ้นรถ ──
+    if (wasInVehicle && !entry.isInVehicle) {
+      entry.group.position.x = data.x;
+      entry.group.position.z = data.z;
+      entry.lastX = data.x;
+      entry.lastZ = data.z;
+    }
   }
 
   // ── ลบผู้เล่นออกจากฉาก ──
   function remove(id) {
     const entry = _players[id];
     if (!entry) return;
+    if (entry.weaponModel && typeof WeaponHold !== 'undefined' && WeaponHold._disposeDeep) {
+      WeaponHold._disposeDeep(entry.weaponModel);
+    }
     scene.remove(entry.group);
     delete _players[id];
   }
@@ -103,6 +163,7 @@ const RemotePlayers = (() => {
     const lerpSpeed = Math.min(1, 10 * dt);
     for (const id in _players) {
       const entry = _players[id];
+      if (entry.isInVehicle) continue; // กำลังขับรถอยู่ — RemoteVehicles จัดการตำแหน่งให้แล้ว
       const g = entry.group;
 
       g.position.x += (entry.targetX - g.position.x) * lerpSpeed;

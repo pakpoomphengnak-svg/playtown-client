@@ -69,7 +69,7 @@ function makeVehicleButton() {
 
   const handlePress = () => {
     if (isInVehicle) {
-      const av = vehicles.find(v => v.driven);
+      const av = vehicles.find(v => v.localDriven);
       if (av) exitVehicle(av);
     } else if (nearbyVehicle) {
       enterVehicle(nearbyVehicle);
@@ -179,7 +179,7 @@ function makeSpeedometer() {
 
   // self-update loop
   setInterval(() => {
-    const driven = vehicles.find(v => v.driven);
+    const driven = vehicles.find(v => v.localDriven);
     const spd    = driven ? Math.round(Math.abs(driven.speed) * 3.6) : 0;
     valEl.textContent = spd;
     el.style.opacity  = driven ? '1' : '0';
@@ -296,8 +296,9 @@ const { turnWrap: dpadTurnEl, driveWrap: dpadDriveEl } = makeDpad();
 // ── ขึ้นรถ ─────────────────────────────────────
 function enterVehicle(v) {
   if (isInVehicle) return;
-  isInVehicle   = true;
-  v.driven      = true;
+  isInVehicle    = true;
+  v.driven       = true;
+  v.localDriven  = true; // คันนี้คือคันที่ "เรา" กำลังขับอยู่ (ต่างจาก driven ที่หมายถึง "มีคนขับอยู่" เฉยๆ รวมถึงคนอื่น)
   nearbyVehicle = null;
   charGroup.visible               = false;
   vehicleBtnEl.style.display      = 'block';
@@ -307,6 +308,12 @@ function enterVehicle(v) {
   document.getElementById('sprint-btn').style.display    = 'none';
   document.getElementById('hotbar-bar').style.display    = 'none';
   document.getElementById('attack-btn').style.display    = 'none';
+
+  // ── แจ้ง server ว่าเราเป็นคนขับรถคันนี้แล้ว (ให้คนอื่นเห็นเราขับ + กันคนอื่นขึ้นซ้อน) ──
+  if (v.plate && typeof SocketClient !== 'undefined' && SocketClient.isConnected()) {
+    SocketClient.vehicleEnter(v.plate);
+  }
+
   console.log('[Vehicle] ขึ้นรถแล้ว');
 }
 
@@ -314,9 +321,10 @@ function enterVehicle(v) {
 // force=true → ข้าม guard isInVehicle (ใช้ตอน forceStore เช่น pagehide)
 function exitVehicle(v, force) {
   if (!isInVehicle && !force) return;
-  isInVehicle = false;
-  v.driven    = false;
-  v.speed     = 0;
+  isInVehicle   = false;
+  v.driven      = false;
+  v.localDriven = false;
+  v.speed       = 0;
 
   Player.x = v.mesh.position.x + Math.cos(v.rotY) * 2.2;
   Player.z = v.mesh.position.z - Math.sin(v.rotY) * 2.2;
@@ -336,6 +344,12 @@ function exitVehicle(v, force) {
   document.getElementById('sprint-btn').style.display    = 'flex';
   document.getElementById('hotbar-bar').style.display    = 'flex';
   document.getElementById('attack-btn').style.display    = 'flex';
+
+  // ── แจ้ง server ว่าเราลงจากรถแล้ว (ปล่อยให้คนอื่นขึ้นขับต่อได้) ──
+  if (v.plate && typeof SocketClient !== 'undefined' && SocketClient.isConnected()) {
+    SocketClient.vehicleExit(v.plate, v.mesh.position.x, v.mesh.position.z, v.rotY);
+  }
+
   console.log('[Vehicle] ลงรถแล้ว');
 }
 
@@ -420,6 +434,7 @@ function checkNearVehicle() {
   if (isInVehicle) { return; } // ปุ่มยังโชว์อยู่เป็นปุ่ม "ลงรถ" ไม่ต้องไปแก้ display ที่นี่
   let found = null;
   for (const v of vehicles) {
+    if (v.driven) continue; // คันนี้มีคนขับอยู่แล้ว (ตัวเองหรือคนอื่นผ่าน RemoteVehicles) — เข้าไม่ได้
     const dx = Player.x - v.mesh.position.x;
     const dz = Player.z - v.mesh.position.z;
     if (Math.sqrt(dx * dx + dz * dz) <= ENTER_DIST) { found = v; break; }
@@ -431,7 +446,7 @@ function checkNearVehicle() {
 // ── เติมน้ำมัน (เรียกจาก gas_station.js) ────────
 // amount: จำนวนที่เติม (default เต็มถัง)
 function refuelVehicle(amount) {
-  const driven = vehicles.find(v => v.driven);
+  const driven = vehicles.find(v => v.localDriven);
   if (!driven) return false;
   driven.fuel = amount != null
     ? Math.min(driven.maxFuel, driven.fuel + amount)
@@ -443,7 +458,7 @@ function refuelVehicle(amount) {
 // ── auto-save fuel ลง garage state ทุก 5 วินาที ──────
 // ป้องกันข้อมูลหาย กรณีปิดเกมกะทันหัน (ก่อนที่ garage.storeVehicle จะถูกเรียก)
 setInterval(() => {
-  const driven = vehicles.find(v => v.driven && v.plate);
+  const driven = vehicles.find(v => v.localDriven && v.plate);
   if (!driven) return;
   if (typeof Garage === 'undefined') return;
   try {
@@ -458,7 +473,7 @@ setInterval(() => {
 window.addEventListener('keydown', e => {
   if (e.code !== 'KeyE') return;
   if (isInVehicle) {
-    const av = vehicles.find(v => v.driven);
+    const av = vehicles.find(v => v.localDriven);
     if (av) exitVehicle(av);
   } else if (nearbyVehicle) {
     enterVehicle(nearbyVehicle);
