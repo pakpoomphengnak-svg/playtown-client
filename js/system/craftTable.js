@@ -146,14 +146,34 @@ const CRAFT_CATEGORIES = ['ทั่วไป', 'ซัพพลาย', 'อา
   titleEl.textContent = '🛠️ โต๊ะคราฟ — ฐานกบฏ';
   Object.assign(titleEl.style, { color: '#ffa726', fontWeight: '700', fontSize: '11px' });
 
+  // ── ปุ่ม toggle แหล่งวัตถุดิบ: 📦 กระเป๋า ⇄ 🔒 ตู้เซฟ (มุมขวาบน ก่อนปุ่มปิด) ──
+  const sourceToggleBtn = document.createElement('button');
+  Object.assign(sourceToggleBtn.style, {
+    border: '1px solid rgba(255,167,38,0.35)',
+    borderRadius: '10px',
+    background: 'rgba(255,255,255,0.05)',
+    color: '#ccc', fontSize: '10px', fontWeight: '700',
+    padding: '3px 8px', cursor: 'pointer', fontFamily: 'inherit',
+    display: 'flex', alignItems: 'center', gap: '4px',
+    WebkitTapHighlightColor: 'transparent',
+    userSelect: 'none', WebkitUserSelect: 'none',
+    transition: 'background 0.12s, border-color 0.12s, color 0.12s',
+  });
+
+  const headerRight = document.createElement('div');
+  Object.assign(headerRight.style, { display: 'flex', alignItems: 'center', gap: '6px' });
+  headerRight.appendChild(sourceToggleBtn);
+
   const closeBtn = document.createElement('button');
   closeBtn.textContent = '✕';
   Object.assign(closeBtn.style, {
     background: 'none', border: 'none', color: '#666',
     fontSize: '15px', cursor: 'pointer', padding: '0 3px', lineHeight: '1',
   });
+  headerRight.appendChild(closeBtn);
+
   header.appendChild(titleEl);
-  header.appendChild(closeBtn);
+  header.appendChild(headerRight);
 
   // ── Tab Bar ──────────────────────────────────
   const tabBar = document.createElement('div');
@@ -502,14 +522,13 @@ const CRAFT_CATEGORIES = ['ทั่วไป', 'ซัพพลาย', 'อา
     if (!recipe) return 0;
     let max = Infinity;
     recipe.materials.forEach(mat => {
-      const have = (typeof Inventory !== 'undefined' && typeof Inventory.countItem === 'function')
-        ? Inventory.countItem(mat.id) : 0;
+      const have = sourceCount(mat.id);
       const b = Math.floor(have / mat.qty);
       if (b < max) max = b;
     });
     if (max === Infinity) return 0;
 
-    // ── เช็คพื้นที่ stack ของไอเทมผลลัพธ์ด้วย ──
+    // ── เช็คพื้นที่ stack ของไอเทมผลลัพธ์ด้วย (ผลลัพธ์เข้ากระเป๋าผู้เล่นเสมอ ไม่ว่าจะใช้แหล่งวัตถุดิบไหน) ──
     // resultQty ต่อครั้ง, ถ้าเหลือพื้นที่ไม่พอสำหรับแม้แต่ 1 ครั้ง → คราฟไม่ได้เลย
     const space = resultStackSpace(recipe);
     const byStack = recipe.resultQty > 0 ? Math.floor(space / recipe.resultQty) : Infinity;
@@ -524,6 +543,88 @@ const CRAFT_CATEGORIES = ['ทั่วไป', 'ซัพพลาย', 'อา
     const space = resultStackSpace(recipe);
     return recipe.resultQty > 0 && space < recipe.resultQty;
   }
+
+
+  // ── แหล่งวัตถุดิบ: 'inventory' (กระเป๋า) หรือ 'safe' (ตู้เซฟ) ──
+  // toggle ด้วยปุ่ม sourceToggleBtn มุมขวาบน — มีผลกับ "วัตถุดิบที่ใช้คราฟ" เท่านั้น
+  // ไอเทมที่คราฟสำเร็จยังเข้ากระเป๋าผู้เล่นเสมอ (ไม่ว่าจะดึงวัตถุดิบจากไหน)
+  let materialSource = 'inventory';
+
+  // ── จำนวนวัตถุดิบที่ "มี" ในแหล่งที่ระบุ (ไม่ระบุ = ใช้ materialSource ปัจจุบัน) ──
+  function sourceCount(itemId, src) {
+    const s = src || materialSource;
+    if (s === 'safe') {
+      return (typeof SafeBox !== 'undefined' && typeof SafeBox.getQty === 'function')
+        ? SafeBox.getQty(itemId) : 0;
+    }
+    return (typeof Inventory !== 'undefined' && typeof Inventory.countItem === 'function')
+      ? Inventory.countItem(itemId) : 0;
+  }
+
+  // ── หักวัตถุดิบออกจากแหล่งที่ระบุ (ไม่ระบุ = ใช้ materialSource ปัจจุบัน) ──
+  function sourceRemove(itemId, qty, src) {
+    const s = src || materialSource;
+    if (s === 'safe') {
+      if (typeof SafeBox !== 'undefined' && typeof SafeBox.removeItem === 'function') {
+        SafeBox.removeItem(itemId, qty);
+        if (typeof SafeBox.save === 'function') SafeBox.save();
+      }
+      return;
+    }
+    if (typeof Inventory !== 'undefined' && typeof Inventory.removeItem === 'function') {
+      Inventory.removeItem(itemId, qty, true);
+    }
+  }
+
+  // ── คืนวัตถุดิบกลับแหล่งที่ระบุ (ใช้ตอนยกเลิกคราฟ — ไม่ระบุ = ใช้ materialSource ปัจจุบัน) ──
+  function sourceRefund(itemId, qty, src) {
+    if (!qty || qty <= 0) return; // qty = 0 → ไม่ต้องคืน (ไม่เคยถูกหักไปจริง)
+    const s = src || materialSource;
+    if (s === 'safe') {
+      if (typeof SafeBox !== 'undefined' && typeof SafeBox.addItem === 'function') {
+        SafeBox.addItem(itemId, qty);
+        if (typeof SafeBox.save === 'function') SafeBox.save();
+      }
+      return;
+    }
+    refundMaterialIgnoreStack(itemId, qty);
+  }
+
+  // ── ผู้เล่นมีกุญแจตู้เซฟไหม (ใช้กันการสลับไปใช้ตู้เซฟถ้ายังไม่มีกุญแจ) ──
+  function hasSafeKey() {
+    return Array.isArray(Inventory._slots) &&
+      Inventory._slots.some(s => s && s.id === 'safe_key');
+  }
+
+  // ── อัปเดตหน้าตาปุ่ม toggle ให้ตรงกับ materialSource ปัจจุบัน ──
+  function renderSourceToggle() {
+    const usingSafe = materialSource === 'safe';
+    sourceToggleBtn.textContent = usingSafe ? '🔒 ตู้เซฟ' : '📦 กระเป๋า';
+    sourceToggleBtn.style.background   = usingSafe ? 'rgba(255,167,38,0.16)' : 'rgba(255,255,255,0.05)';
+    sourceToggleBtn.style.borderColor  = usingSafe ? 'rgba(255,167,38,0.55)' : 'rgba(255,167,38,0.35)';
+    sourceToggleBtn.style.color        = usingSafe ? '#ffa726' : '#ccc';
+    sourceToggleBtn.style.opacity      = isCrafting ? '0.5' : '1';
+    sourceToggleBtn.style.cursor       = isCrafting ? 'default' : 'pointer';
+  }
+
+  sourceToggleBtn.addEventListener('click', () => {
+    if (isCrafting) return; // กันสลับแหล่งกลางทางตอนคราฟอยู่ (เหมือน tab หมวดหมู่)
+
+    if (materialSource === 'inventory') {
+      if (!hasSafeKey()) {
+        if (typeof Notification !== 'undefined')
+          Notification.show('ต้องมีกุญแจตู้เซฟ 🗝️ ในกระเป๋าก่อนถึงจะใช้วัตถุดิบจากตู้เซฟได้', { icon: '🔒', color: '#f44336' });
+        return;
+      }
+      materialSource = 'safe';
+    } else {
+      materialSource = 'inventory';
+    }
+
+    renderSourceToggle();
+    renderItemList();
+    renderRight();
+  });
 
   // ── State ─────────────────────────────────────
   let craftQty    = 1;
@@ -692,8 +793,7 @@ const CRAFT_CATEGORIES = ['ทั่วไป', 'ซัพพลาย', 'อา
 
     selectedRecipe.materials.filter(mat => mat.id !== 'cash' && mat.id !== 'dirty_cash').forEach(mat => {
       const matDef = itemDef(mat.id);
-      const have = (typeof Inventory !== 'undefined' && typeof Inventory.countItem === 'function')
-        ? Inventory.countItem(mat.id) : 0;
+      const have = sourceCount(mat.id);
       const need = mat.qty * craftQty;
       const ok   = have >= need;
       const ratio = Math.min(have / need, 1);
@@ -750,8 +850,7 @@ const CRAFT_CATEGORIES = ['ทั่วไป', 'ซัพพลาย', 'อา
 
       cashMats.forEach(mat => {
         const matDef = itemDef(mat.id);
-        const have = (typeof Inventory !== 'undefined' && typeof Inventory.countItem === 'function')
-          ? Inventory.countItem(mat.id) : 0;
+        const have = sourceCount(mat.id);
         const need = mat.qty * craftQty;
         const ok   = have >= need;
 
@@ -864,9 +963,11 @@ const CRAFT_CATEGORIES = ['ทั่วไป', 'ซัพพลาย', 'อา
       successCount: 0,
       cancelled: false,
       currentMaterialsDeducted: false,
+      source: materialSource, // ล็อกแหล่งวัตถุดิบไว้ ณ ตอนเริ่มคราฟ (ปุ่ม toggle ถูกปิดใช้งานอยู่แล้วระหว่างคราฟ)
     };
 
     isCrafting = true;
+    renderSourceToggle();
     renderItemList();
     renderRight();
 
@@ -880,11 +981,8 @@ const CRAFT_CATEGORIES = ['ทั่วไป', 'ซัพพลาย', 'อา
 
     const recipe = session.recipe;
 
-    // เช็ควัตถุดิบของชิ้นนี้
-    const hasAll = recipe.materials.every(mat =>
-      (typeof Inventory !== 'undefined' && typeof Inventory.countItem === 'function')
-        ? Inventory.countItem(mat.id) >= mat.qty : false
-    );
+    // เช็ควัตถุดิบของชิ้นนี้ (จากแหล่งที่ล็อกไว้ตอนเริ่มเซสชันนี้)
+    const hasAll = recipe.materials.every(mat => sourceCount(mat.id, session.source) >= mat.qty);
     if (!hasAll) {
       if (typeof Notification !== 'undefined')
         Notification.show('❌ วัตถุดิบไม่พอสำหรับคราฟชิ้นต่อไป', { icon: '🛠️', color: '#ef5350' });
@@ -900,9 +998,9 @@ const CRAFT_CATEGORIES = ['ทั่วไป', 'ซัพพลาย', 'อา
       return;
     }
 
-    // หักวัตถุดิบของชิ้นนี้ทันทีตอนเริ่มคราฟชิ้นนี้
+    // หักวัตถุดิบของชิ้นนี้ทันทีตอนเริ่มคราฟชิ้นนี้ (จากแหล่งที่ล็อกไว้ตอนเริ่มเซสชันนี้)
     recipe.materials.forEach(mat => {
-      Inventory.removeItem(mat.id, mat.qty, true);
+      sourceRemove(mat.id, mat.qty, session.source);
     });
     session.currentMaterialsDeducted = true;
 
@@ -983,6 +1081,7 @@ const CRAFT_CATEGORIES = ['ทั่วไป', 'ซัพพลาย', 'อา
     craftSession = null;
     isCrafting = false;
     craftQty = 1;
+    renderSourceToggle();
     renderItemList();
     renderCenter();   // จะ reset ring กลับไปแสดงโอกาสสำเร็จตามปกติ
     renderRight();
@@ -1022,7 +1121,7 @@ const CRAFT_CATEGORIES = ['ทั่วไป', 'ซัพพลาย', 'อา
 
     if (session.currentMaterialsDeducted) {
       session.recipe.materials.forEach(mat => {
-        refundMaterialIgnoreStack(mat.id, mat.qty); // qty = 0 → ข้ามอัตโนมัติ, ไม่สน maxStack
+        sourceRefund(mat.id, mat.qty, session.source); // qty = 0 → ข้ามอัตโนมัติ
       });
       session.currentMaterialsDeducted = false;
     }
@@ -1033,6 +1132,7 @@ const CRAFT_CATEGORIES = ['ทั่วไป', 'ซัพพลาย', 'อา
     craftSession = null;
     isCrafting = false;
     craftQty = 1;
+    renderSourceToggle();
     renderItemList();
     renderCenter();
     renderRight();
@@ -1040,6 +1140,9 @@ const CRAFT_CATEGORIES = ['ทั่วไป', 'ซัพพลาย', 'อา
 
   // ── Open / Close ──────────────────────────────
   function openCraft() {
+    // ── เผื่อผู้เล่นเสียกุญแจตู้เซฟไปตอนปิด panel ก่อนหน้า → กลับไปใช้กระเป๋าเป็นค่าเริ่มต้น ──
+    if (materialSource === 'safe' && !hasSafeKey()) materialSource = 'inventory';
+    renderSourceToggle();
     setActiveCategory(activeCategory);
     overlay.style.display = 'flex';
     openBtn.style.display = 'none';
@@ -1089,6 +1192,7 @@ const CRAFT_CATEGORIES = ['ทั่วไป', 'ซัพพลาย', 'อา
     }
   };
 
+  renderSourceToggle();
   setActiveCategory(activeCategory);
 
 })();
