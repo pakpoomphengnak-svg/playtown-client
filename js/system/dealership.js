@@ -18,8 +18,9 @@
 
 // ── รายการรถที่ขายในโชว์รูม ────────────────────
 const DEALERSHIP_CATALOG = {
-  starter_car: { name: 'Starter Car', emoji: '🚗', price: 100 },
-  audi:        { name: 'Audi Sedan',  emoji: '🏎️', price: 25000 },
+  starter_car: { name: 'Starter Car',        emoji: '🚗', price: 100, image: 'assets/vehicles/starter_car.png' },
+  audi:        { name: 'Audi Sedan',         emoji: '🏎️', price: 25000 },
+  r32:         { name: 'Nissan Skyline R32', emoji: '🏁', price: 75000, image: 'assets/vehicles/r32.png' },
 };
 
 // ── สุ่มทะเบียนสไตล์ FiveM: ABC1234 ────────────
@@ -421,7 +422,23 @@ const Dealership = {
 
       const maxedOut = !Dealership.canBuy(typeId);
 
-      const icon    = document.createElement('div'); icon.className = 'dlr-cell-icon';  icon.textContent = item.emoji;
+      // ── icon: ใช้รูปภาพถ้ามี item.image ไม่งั้น fallback emoji ──
+      const icon = document.createElement('div');
+      icon.className = 'dlr-cell-icon';
+      if (item.image) {
+        const img = document.createElement('img');
+        img.src = item.image;
+        img.alt = item.name;
+        Object.assign(img.style, {
+          width: '56px', height: '40px', objectFit: 'contain',
+          borderRadius: '4px', display: 'block',
+        });
+        img.onerror = () => { icon.removeChild(img); icon.textContent = item.emoji; };
+        icon.appendChild(img);
+      } else {
+        icon.textContent = item.emoji;
+      }
+
       const name    = document.createElement('div'); name.className = 'dlr-cell-name';  name.textContent = item.name;
       const priceEl = document.createElement('div'); priceEl.className = 'dlr-cell-price';
       priceEl.textContent = maxedOut ? 'มีครบแล้ว ✅' : `💵 ${item.price.toLocaleString()}`;
@@ -481,12 +498,29 @@ const Dealership = {
     selectedTypeId = typeId;
 
     confirmLabel.innerHTML = '';
-    const iconSpan = document.createElement('span');
-    iconSpan.style.fontSize = '24px';
-    iconSpan.textContent = item.emoji;
+    if (item.image) {
+      const img = document.createElement('img');
+      img.src = item.image;
+      img.alt = item.name;
+      Object.assign(img.style, {
+        width: '48px', height: '34px', objectFit: 'contain', borderRadius: '4px',
+      });
+      img.onerror = () => {
+        img.remove();
+        const fb = document.createElement('span');
+        fb.style.fontSize = '24px';
+        fb.textContent = item.emoji;
+        confirmLabel.insertBefore(fb, confirmLabel.firstChild);
+      };
+      confirmLabel.appendChild(img);
+    } else {
+      const iconSpan = document.createElement('span');
+      iconSpan.style.fontSize = '24px';
+      iconSpan.textContent = item.emoji;
+      confirmLabel.appendChild(iconSpan);
+    }
     const nameSpan = document.createElement('span');
     nameSpan.textContent = `${item.name} — 💵 ${item.price.toLocaleString()}`;
-    confirmLabel.appendChild(iconSpan);
     confirmLabel.appendChild(nameSpan);
 
     confirmPriceEl.textContent = `รวม 💵 ${item.price.toLocaleString()}`;

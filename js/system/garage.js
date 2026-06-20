@@ -278,6 +278,11 @@ const Garage = {
       v.fuel = vState.fuel;
     }
 
+    // ── restore สีตัวถังที่เคยแต่งไว้ ──
+    if (typeof window.TuningRestoreColor === 'function') {
+      window.TuningRestoreColor(v);
+    }
+
     vState.stored = false;
     vState.x = spot.x; vState.z = spot.z; vState.rotY = spot.rotY;
     this._save(state);
@@ -388,7 +393,8 @@ const Garage = {
       background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.09);
       border-radius: 10px; padding: 10px 12px;
     }
-    .garage-row-icon { font-size: 26px; line-height: 1; flex-shrink: 0; }
+    .garage-row-icon { font-size: 26px; line-height: 1; flex-shrink: 0; width: 56px; height: 40px; display: flex; align-items: center; justify-content: center; }
+    .garage-row-icon img { width: 56px; height: 40px; object-fit: contain; border-radius: 4px; display: block; }
     .garage-row-info { flex: 1; min-width: 0; }
     .garage-row-name { font-size: 13px; font-weight: 700; color: #eee; }
     .garage-row-plate {
@@ -648,7 +654,15 @@ const Garage = {
 
       const icon = document.createElement('div');
       icon.className = 'garage-row-icon';
-      icon.textContent = item ? item.emoji : '🚗';
+      if (item && item.image) {
+        const img = document.createElement('img');
+        img.src = item.image;
+        img.alt = item.name;
+        img.onerror = () => { img.remove(); icon.textContent = item ? item.emoji : '🚗'; };
+        icon.appendChild(img);
+      } else {
+        icon.textContent = item ? item.emoji : '🚗';
+      }
 
       const info = document.createElement('div');
       info.className = 'garage-row-info';

@@ -37,23 +37,53 @@ const CRAFT_RECIPES = {
         { id: 'woodplank',          qty: 10 },
         { id: 'ironingot', qty: 5 },
         { id: 'goldingot',          qty: 3 },
-        { id: 'diamond', qty: 1},
+        { id: 'diamond', qty: 1 },
         { id: 'cash',           qty: 1000 },
         { id: 'dirty_cash',     qty: 0 },
       ],
-      successRate: 80,    // โอกาสสำเร็จ 80%
-      craftTime:   5,     // คราฟ 1 ครั้งใช้เวลา 5 วินาที
+      successRate: 80,
+      craftTime:   3,
     },
   ],
   ซัพพลาย: [
-    // ── เพิ่มสูตรคราฟหมวดซัพพลายที่นี่ ──
   ],
   อาวุธ: [
-    // ── เพิ่มสูตรคราฟหมวดอาวุธที่นี่ ──
+    {
+      id:          'bottle',
+      resultQty:   1,
+      materials:   [
+        { id: 'ironingot',          qty: 30 },
+        { id: 'goldingot',          qty: 10 },
+        { id: 'diamond', qty: 3 },
+        { id: 'cement', qty: 5 },
+        { id: 'wire', qty: 5 },
+        { id: 'cash',           qty: 0 },
+        { id: 'dirty_cash',     qty: 100 },
+      ],
+      successRate: 50,
+      craftTime:   5,
+    },
+    {
+      id:          'poolcue',
+      resultQty:   1,
+      materials:   [
+        { id: 'woodplank',          qty: 30 },
+        { id: 'goldingot',          qty: 10 },
+        { id: 'diamond', qty: 3 },
+        { id: 'cement', qty: 5 },
+        { id: 'wire', qty: 5 },
+        { id: 'cash',           qty: 0 },
+        { id: 'dirty_cash',     qty: 100 },
+      ],
+      successRate: 50,
+      craftTime:   5,
+    },
+  ],
+  ตีบวกอาวุธ: [
   ],
 };
 
-const CRAFT_CATEGORIES = ['ทั่วไป', 'ซัพพลาย', 'อาวุธ'];
+const CRAFT_CATEGORIES = ['ทั่วไป', 'ซัพพลาย', 'อาวุธ', 'ตีบวกอาวุธ'];
 
 // ── UI ────────────────────────────────────────
 (function initCraftUI() {

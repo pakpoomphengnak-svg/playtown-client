@@ -141,6 +141,7 @@ function animate() {
   if (typeof updateDealership === 'function') updateDealership();
   if (typeof updateGarage === 'function') updateGarage();
   if (typeof updateGasStation === 'function') updateGasStation();
+  if (typeof updateTuning === 'function') updateTuning();
   if (typeof updateMinimap === 'function') updateMinimap(dt);
 
   // ── กล้อง ───────────────────────────────────
