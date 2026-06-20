@@ -12,7 +12,7 @@
 // ต้องโหลดก่อน: system/tuningShopUI.js, game.js
 // ─────────────────────────────────────────────
 
-const TUNING_SHOP_CENTER = { x: -55, z: 90 };
+const TUNING_SHOP_CENTER = { x: 38, z: -50 };
 const TUNING_SHOP_RADIUS = 10;
 
 (function buildTuningShop() {

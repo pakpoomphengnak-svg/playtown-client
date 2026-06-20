@@ -18,9 +18,9 @@
 
 // ── รายการรถที่ขายในโชว์รูม ────────────────────
 const DEALERSHIP_CATALOG = {
-  starter_car: { name: 'Starter Car',        emoji: '🚗', price: 100, image: 'assets/vehicles/starter_car.png' },
+  starter_car: { name: 'Starter Car',        emoji: '🚗', price: 100 },
   audi:        { name: 'Audi Sedan',         emoji: '🏎️', price: 25000 },
-  r32:         { name: 'Nissan Skyline R32', emoji: '🏁', price: 75000, image: 'assets/vehicles/r32.png' },
+  r32:         { name: 'R32', emoji: '🏁', price: 1, image: 'assets/vehicles/r32.png' },
 };
 
 // ── สุ่มทะเบียนสไตล์ FiveM: ABC1234 ────────────
