@@ -27,13 +27,13 @@ const Notification = {
     c.id = 'notif-container';
     Object.assign(c.style, {
       position:        'fixed',
-      top:             '16px',
+      top:             '10px',
       left:            '50%',
       transform:       'translateX(-50%)',
       display:         'flex',
       flexDirection:   'column',
       alignItems:      'center',
-      gap:             '6px',
+      gap:             '4px',
       zIndex:          '9200',
       pointerEvents:   'none',
       width:           '280px',
@@ -50,11 +50,11 @@ const Notification = {
     Object.assign(el.style, {
       background:     'rgba(10,10,14,0.93)',
       borderLeft:     `4px solid ${color}`,
-      borderRadius:   '8px',
-      padding:        '10px 14px 0 14px',
+      borderRadius:   '4px',
+      padding:        '6px 8px 0 14px',
       color:          '#e8e8e8',
       fontFamily:     "'Segoe UI', 'Helvetica Neue', sans-serif",
-      fontSize:       '13px',
+      fontSize:       '10px',
       boxShadow:      '0 4px 24px rgba(0,0,0,0.55)',
       overflow:       'hidden',
       transform:      'translateY(-120%)',
@@ -124,9 +124,9 @@ const Notification = {
     // ── ไอคอน: รูปภาพหรือ emoji ──
     const iconWrap = document.createElement('div');
     Object.assign(iconWrap.style, {
-      width:           '42px',
-      height:          '42px',
-      minWidth:        '42px',
+      width:           '40px',
+      height:          '40px',
+      minWidth:        '40px',
       borderRadius:    '8px',
       background:      'rgba(255,255,255,0.08)',
       display:         'flex',
@@ -172,7 +172,7 @@ const Notification = {
     const titleEl = document.createElement('div');
     titleEl.textContent = `ได้รับ${itemName}`;
     Object.assign(titleEl.style, {
-      fontSize:     '12px',
+      fontSize:     '10px',
       color:        '#bdbdbd',
       whiteSpace:   'nowrap',
       overflow:     'hidden',
@@ -183,7 +183,7 @@ const Notification = {
     const amountEl = document.createElement('div');
     amountEl.textContent = amount;
     Object.assign(amountEl.style, {
-      fontSize:   '17px',
+      fontSize:   '12px',
       fontWeight: 'bold',
       color:      color,
       lineHeight: '1.1',

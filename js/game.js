@@ -141,6 +141,7 @@ function animate() {
   if (typeof updateStore === 'function') updateStore();
   if (typeof updateDealership === 'function') updateDealership();
   if (typeof updateGarage === 'function') updateGarage();
+  if (typeof updateVehicleStorage === 'function') updateVehicleStorage();
   if (typeof updateGasStation === 'function') updateGasStation();
   if (typeof updateTuning === 'function') updateTuning();
   if (typeof updateMinimap === 'function') updateMinimap(dt);
