@@ -1,31 +1,68 @@
-// client/js/system/gacha.js
-// ─────────────────────────────────────────────
-// GACHA SYSTEM — ระบบกาชาดึงไอเทม สไตล์ CS:GO (เปิดกล่อง)
-//
-// เมื่อผู้เล่นใช้ไอเทม "gachav1" จาก inventory/hotbar → เปิดหน้ากาชา
-// แถบไอเทมจะเลื่อนสุ่มไปทางซ้าย แล้วช้าลงจนหยุดตรงไอเทมที่สุ่มได้ (ตรงเส้นกลาง)
-// คล้ายระบบเปิดกล่อง (case opening) ของ CS:GO
-//
-// วิธีใช้ (จากไอเทม): Gacha.open('gachav1');
-// เพิ่มกาชาพูลใหม่ได้ที่ GACHA_POOLS ด้านล่าง
-//
-// ต้องโหลดหลัง: system/inventory.js, system/notification.js, system/hotbar.js (ใช้ _itemIcon)
-// ต้องโหลดก่อน: game.js
-// ─────────────────────────────────────────────
-
-// ═══════════════════════════════════════════════════════
-// ── GACHA POOL CONFIG ──
-// ═══════════════════════════════════════════════════════
 const GACHA_POOLS = {
   gachav1: [
-    { itemId: 'apple',        amount: 5,    weight: 30, rarity: 'common'    },
-    { itemId: 'water_bottle', amount: 3,    weight: 28, rarity: 'common'    },
-    { itemId: 'cash',         amount: 50,   weight: 22, rarity: 'uncommon'  },
-    { itemId: 'ironingot',    amount: 3,    weight: 12, rarity: 'uncommon'  },
-    { itemId: 'cash',         amount: 200,  weight: 8,  rarity: 'rare'      },
-    { itemId: 'goldingot',    amount: 2,    weight: 5,  rarity: 'rare'      },
-    { itemId: 'diamond',      amount: 1,    weight: 2,  rarity: 'epic'      },
-    { itemId: 'cash',         amount: 1000, weight: 1,  rarity: 'legendary' },
+    {
+        itemId: 'cash',
+        minAmount: 100,
+        maxAmount: 1000,
+        weight: 30,
+        rarity: 'common'
+    },
+    {
+        itemId: 'woodplank',
+        minAmount: 1,
+        maxAmount: 5,
+        weight: 20,
+        rarity: 'uncommon'
+    },
+    {
+        itemId: 'ironingot',
+        minAmount: 1,
+        maxAmount: 5,
+        weight: 20,
+        rarity: 'uncommon'
+    },
+    {
+        itemId: 'goldingot',
+        minAmount: 1,
+        maxAmount: 4,
+        weight: 10,
+        rarity: 'uncommon'
+    },
+    {
+        itemId: 'dirty_cash',
+        minAmount: 10,
+        maxAmount: 100,
+        weight: 7,
+        rarity: 'rare'
+    },
+    {
+        itemId: 'cement',
+        minAmount: 1,
+        maxAmount: 3,
+        weight: 5,
+        rarity: 'rare'
+    },
+    {
+        itemId: 'wire',
+        minAmount: 1,
+        maxAmount: 3,
+        weight: 5, 
+        rarity: 'rare'
+    },
+    {
+        itemId: 'diamond',
+        minAmount: 1,
+        maxAmount: 2,
+        weight: 2.5,
+        rarity: 'epic'
+    },
+    {
+        itemId: 'r32_box',
+        minAmount: 1,
+        maxAmount: 1,
+        weight: 0.5,
+        rarity: 'legendary'
+    },
   ],
 };
 
@@ -48,9 +85,18 @@ const Gacha = {
     let roll = Math.random() * totalWeight;
     for (const reward of pool) {
       roll -= (reward.weight || 1);
-      if (roll <= 0) return reward;
+      if (roll <= 0) {
+        const min = reward.minAmount ?? reward.amount ?? 1;
+        const max = reward.maxAmount ?? reward.amount ?? min;
+        const amount = Math.floor(Math.random() * (max - min + 1)) + min;
+        return { ...reward, amount };
+      }
     }
-    return pool[pool.length - 1];
+    const last = pool[pool.length - 1];
+    const min = last.minAmount ?? last.amount ?? 1;
+    const max = last.maxAmount ?? last.amount ?? min;
+    const amount = Math.floor(Math.random() * (max - min + 1)) + min;
+    return { ...last, amount };
   },
 
   open(poolKey) {
@@ -507,9 +553,17 @@ const Gacha = {
     card.appendChild(iconWrap);
 
     const amountEl = document.createElement('div');
-    amountEl.className   = 'gacha-card-amount';
-    amountEl.textContent = `x${reward.amount}`;
+    amountEl.className = 'gacha-card-amount';
     amountEl.style.color = color;
+    // ถ้า reward ที่ส่งมามีจำนวนจริงแล้ว (หลัง roll) ให้แสดงจำนวนนั้น
+    // ถ้าเป็นการสร้าง card ตัวอย่างใน reel (ก่อน roll) ให้แสดง range
+    if (reward.amount !== undefined) {
+      amountEl.textContent = `x${reward.amount}`;
+    } else {
+      const min = reward.minAmount ?? 1;
+      const max = reward.maxAmount ?? min;
+      amountEl.textContent = min === max ? `x${min}` : `x${min}–${max}`;
+    }
     card.appendChild(amountEl);
     return card;
   }

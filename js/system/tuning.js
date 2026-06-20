@@ -226,7 +226,7 @@ window.TuningRestoreColor = restoreVehicleColor;
   tuningBtn.id = 'tuning-btn';
   tuningBtn.textContent = '🔧 แต่งรถ';
   Object.assign(tuningBtn.style, {
-    position: 'fixed', bottom: '10px', left: '50%',
+    position: 'fixed', bottom: '50px', left: '50%',
     transform: 'translateX(-50%) scale(0.9)',
     background: 'rgba(255,111,0,0.88)',
     border: '2px solid rgba(255,255,255,0.55)',
