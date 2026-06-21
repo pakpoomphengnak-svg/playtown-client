@@ -30,8 +30,8 @@ const GACHA_POOLS = {
     },
     {
         itemId: 'dirty_cash',
-        minAmount: 50,
-        maxAmount: 250,
+        minAmount: 100,
+        maxAmount: 500,
         weight: 7,
         rarity: 'rare'
     },

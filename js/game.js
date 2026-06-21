@@ -9,13 +9,26 @@ const _raycaster = new THREE.Raycaster();
 const _rayDown   = new THREE.Vector3(0, -1, 0);
 const _rayOrigin = new THREE.Vector3();
 
-// คืนค่า Y ของพื้นที่ตำแหน่ง (x, z) โดย raycast จากด้านบน
-// groundMeshes คือ array ของ mesh ที่ถือว่าเป็น "พื้น"
+// ── FIX #2: Cache groundY — raycast หนักมาก ไม่ควรยิงทุกเฟรมถ้าตำแหน่งไม่เปลี่ยน ──
+// cache แยกกันระหว่างผู้เล่น local กับ remote (remotePlayers.js ใช้ _groundYCache ตรงนี้ด้วย)
+const _groundYCache = new Map(); // key: "x,z" (ปัดทศนิยม 1 ตำแหน่ง) → y
+const GROUND_CACHE_PRECISION = 1; // ตารางเมตร — เคลื่อนน้อยกว่านี้ใช้ค่าเดิม
+const GROUND_CACHE_MAX = 512;     // กัน Map โตไม่หยุด (LRU แบบง่าย: เกิน limit → ล้างทิ้ง)
+
 function getGroundY(x, z) {
+  const kx = Math.round(x / GROUND_CACHE_PRECISION);
+  const kz = Math.round(z / GROUND_CACHE_PRECISION);
+  const key = `${kx},${kz}`;
+  if (_groundYCache.has(key)) return _groundYCache.get(key);
+
   _rayOrigin.set(x, 50, z);
   _raycaster.set(_rayOrigin, _rayDown);
   const hits = _raycaster.intersectObjects(groundMeshes);
-  return hits.length > 0 ? hits[0].point.y : 0;
+  const y = hits.length > 0 ? hits[0].point.y : 0;
+
+  if (_groundYCache.size >= GROUND_CACHE_MAX) _groundYCache.clear(); // LRU แบบง่าย
+  _groundYCache.set(key, y);
+  return y;
 }
 
 function checkCollision(nx, nz) {
@@ -48,6 +61,15 @@ let elapsedTime = 0;
 // ── Multiplayer: ส่งตำแหน่งให้ server เป็นระยะ (ไม่ส่งทุกเฟรม กันรก bandwidth) ──
 let _posSendTimer = 0;
 const POS_SEND_INTERVAL = 0.1; // วินาที (10 ครั้ง/วิ)
+
+// ── FIX #3: Throttle — update functions ที่ไม่ต้องรันทุกเฟรม (building/system/UI logic) ──
+// แบ่งเป็น 2 กลุ่ม:
+//   slowTimer  (~20 ครั้ง/วิ, ทุก 50ms)  → pickup, progress, market, store, garage ฯลฯ
+//   vslowTimer (~10 ครั้ง/วิ, ทุก 100ms) → minimap (หนักเพราะวาด canvas ใหม่ทุกครั้ง)
+let _slowTimer  = 0;
+let _vslowTimer = 0;
+const SLOW_INTERVAL  = 0.05;  // 20 ครั้ง/วิ
+const VSLOW_INTERVAL = 0.1;   // 10 ครั้ง/วิ
 
 // ── Sound: จังหวะเสียงฝีเท้า (walk.ogg) — เดินช้ากว่าวิ่ง ──
 let _footstepTimer = 0;
@@ -147,31 +169,45 @@ function animate() {
   // ── WeaponSystem cooldown tick ───────────────────────
   if (typeof WeaponSystem !== 'undefined') WeaponSystem.update(dt);
 
-  checkNearVehicle();
-  if (typeof updateSafeBox === 'function') updateSafeBox();
-  if (typeof updateATM === 'function') updateATM();
-  if (typeof updateCraftTable === 'function') updateCraftTable();
-  updateApplePickups(dt, elapsedTime);
-  if (typeof updateAppleProgress === 'function') updateAppleProgress(dt, elapsedTime);
-  if (typeof updateGrapePickups === 'function') updateGrapePickups(dt, elapsedTime);
-  if (typeof updateGrapeProgress === 'function') updateGrapeProgress(dt, elapsedTime);
-  if (typeof updateWeedPickups === 'function') updateWeedPickups(dt, elapsedTime);
-  if (typeof updateWeedProgress === 'function') updateWeedProgress(dt, elapsedTime);
-  if (typeof updateDirtyWork === 'function') updateDirtyWork(dt, elapsedTime);
-  if (typeof updateLogPickups === 'function') updateLogPickups(dt, elapsedTime);
-  if (typeof updateLogProgress === 'function') updateLogProgress(dt, elapsedTime);
-  if (typeof updateRockPickups === 'function') updateRockPickups(dt, elapsedTime);
-  if (typeof updateRockProgress === 'function') updateRockProgress(dt, elapsedTime);
-  if (typeof updateCementPickups === 'function') updateCementPickups(dt, elapsedTime);
-  if (typeof updateWirePickups === 'function') updateWirePickups(dt, elapsedTime);
-  if (typeof updateMarket === 'function') updateMarket();
-  if (typeof updateStore === 'function') updateStore();
-  if (typeof updateDealership === 'function') updateDealership();
-  if (typeof updateGarage === 'function') updateGarage();
-  if (typeof updateVehicleStorage === 'function') updateVehicleStorage();
-  if (typeof updateGasStation === 'function') updateGasStation();
-  if (typeof updateTuning === 'function') updateTuning();
-  if (typeof updateMinimap === 'function') updateMinimap(dt);
+  // ── FIX #3: แยก update ที่ไม่ต้องรันทุกเฟรมออกมา throttle ──
+  // กลุ่ม SLOW (50ms) — pickup/progress/building: gameplay logic ไม่ต้องการ sub-frame precision
+  _slowTimer += dt;
+  if (_slowTimer >= SLOW_INTERVAL) {
+    const sDt = _slowTimer; // ส่ง dt จริงสะสม ให้ animation/timer ข้างในยังนับเวลาได้ถูก
+    _slowTimer = 0;
+
+    checkNearVehicle();
+    if (typeof updateSafeBox === 'function') updateSafeBox();
+    if (typeof updateATM === 'function') updateATM();
+    if (typeof updateCraftTable === 'function') updateCraftTable();
+    updateApplePickups(sDt, elapsedTime);
+    if (typeof updateAppleProgress === 'function') updateAppleProgress(sDt, elapsedTime);
+    if (typeof updateGrapePickups === 'function') updateGrapePickups(sDt, elapsedTime);
+    if (typeof updateGrapeProgress === 'function') updateGrapeProgress(sDt, elapsedTime);
+    if (typeof updateWeedPickups === 'function') updateWeedPickups(sDt, elapsedTime);
+    if (typeof updateWeedProgress === 'function') updateWeedProgress(sDt, elapsedTime);
+    if (typeof updateDirtyWork === 'function') updateDirtyWork(sDt, elapsedTime);
+    if (typeof updateLogPickups === 'function') updateLogPickups(sDt, elapsedTime);
+    if (typeof updateLogProgress === 'function') updateLogProgress(sDt, elapsedTime);
+    if (typeof updateRockPickups === 'function') updateRockPickups(sDt, elapsedTime);
+    if (typeof updateRockProgress === 'function') updateRockProgress(sDt, elapsedTime);
+    if (typeof updateCementPickups === 'function') updateCementPickups(sDt, elapsedTime);
+    if (typeof updateWirePickups === 'function') updateWirePickups(sDt, elapsedTime);
+    if (typeof updateMarket === 'function') updateMarket();
+    if (typeof updateStore === 'function') updateStore();
+    if (typeof updateDealership === 'function') updateDealership();
+    if (typeof updateGarage === 'function') updateGarage();
+    if (typeof updateVehicleStorage === 'function') updateVehicleStorage();
+    if (typeof updateGasStation === 'function') updateGasStation();
+    if (typeof updateTuning === 'function') updateTuning();
+  }
+
+  // กลุ่ม VSLOW (100ms) — minimap: วาด canvas ใหม่ทุกครั้ง หนักเป็นพิเศษ
+  _vslowTimer += dt;
+  if (_vslowTimer >= VSLOW_INTERVAL) {
+    if (typeof updateMinimap === 'function') updateMinimap(_vslowTimer);
+    _vslowTimer = 0;
+  }
 
   // ── กล้อง ───────────────────────────────────
   const activeV   = vehicles.find(v => v.localDriven);

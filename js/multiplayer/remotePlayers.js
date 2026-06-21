@@ -15,6 +15,8 @@ const RemotePlayers = (() => {
   const _players = {};
 
   // ── สร้างชื่อลอยเหนือหัว (sprite ที่หันหน้าเข้ากล้องเสมอ) ──
+  // FIX #5: คืน { sprite, texture, material } แทนที่จะคืนแค่ sprite
+  //         เพื่อให้ remove() เรียก dispose() ได้ถูกต้อง กัน GPU memory รั่ว
   function _makeNameSprite(name) {
     const canvas = document.createElement('canvas');
     canvas.width = 256;
@@ -27,12 +29,22 @@ const RemotePlayers = (() => {
     ctx.fillStyle = '#ffffff';
     ctx.fillText(name.slice(0, 16), 128, 36);
 
-    const texture = new THREE.CanvasTexture(canvas);
+    const texture  = new THREE.CanvasTexture(canvas);
     const material = new THREE.SpriteMaterial({ map: texture, depthTest: false });
-    const sprite = new THREE.Sprite(material);
+    const sprite   = new THREE.Sprite(material);
     sprite.scale.set(1.6, 0.4, 1);
     sprite.position.y = 2.05;
+    // แปะ reference ไว้บน sprite เพื่อให้ dispose ได้ง่ายตอน remove
+    sprite._nameTexture  = texture;
+    sprite._nameMaterial = material;
     return sprite;
+  }
+
+  // ── FIX #5: dispose GPU resources ของ nameSprite ──
+  function _disposeNameSprite(sprite) {
+    if (!sprite) return;
+    if (sprite._nameTexture)  { sprite._nameTexture.dispose();  sprite._nameTexture  = null; }
+    if (sprite._nameMaterial) { sprite._nameMaterial.dispose(); sprite._nameMaterial = null; }
   }
 
   // ── เพิ่มผู้เล่นใหม่เข้าฉาก (ใช้โมเดลตัวละครเดียวกับผู้เล่น local) ──
@@ -175,6 +187,8 @@ const RemotePlayers = (() => {
     if (entry.weaponModel && typeof WeaponHold !== 'undefined' && WeaponHold._disposeDeep) {
       WeaponHold._disposeDeep(entry.weaponModel);
     }
+    // FIX #5: dispose nameSprite texture + material กัน GPU memory รั่วทุกครั้งที่ผู้เล่น disconnect
+    _disposeNameSprite(entry.nameSprite);
     scene.remove(entry.group);
     delete _players[id];
   }
@@ -235,6 +249,8 @@ const RemotePlayers = (() => {
       g.position.z += (entry.targetZ - g.position.z) * lerpSpeed;
 
       const footOffset = (typeof charFootOffset === 'number') ? charFootOffset : 0;
+      // FIX #2: ใช้ getGroundY ที่มี cache แล้ว (game.js) — remote player แต่ละคนเรียกทุกเฟรม
+      // เมื่อหลายคนอยู่ใกล้กัน grid เดียวกันจะ hit cache แทนที่จะ raycast ซ้ำ
       if (typeof getGroundY === 'function') {
         g.position.y = getGroundY(g.position.x, g.position.z) + footOffset;
       }
