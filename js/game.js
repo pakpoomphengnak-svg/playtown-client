@@ -52,6 +52,7 @@ const POS_SEND_INTERVAL = 0.1; // วินาที (10 ครั้ง/วิ)
 // ── Multiplayer: บอกคนอื่นว่าเรากำลังโจมตี (ส่งครั้งเดียวตอนเริ่มท่า ไม่ส่งซ้ำทุกเฟรม) ──
 let _attackToSend = false;
 document.addEventListener('player-attack', () => {
+  if (typeof Player !== 'undefined' && typeof Player.isDead === 'function' && Player.isDead()) return;
   _attackToSend = true;
   // ── WeaponSystem: ตีด้วยอาวุธที่ถืออยู่ (ถ้ามี) ──
   if (typeof WeaponSystem !== 'undefined') WeaponSystem.onAttack();
@@ -72,7 +73,8 @@ function animate() {
 
   const mx = move.x || kx;
   const my = move.y || ky;
-  const isMoving = mx !== 0 || my !== 0;
+  const isPlayerDead = (typeof Player.isDead === 'function') && Player.isDead();
+  const isMoving = !isPlayerDead && (mx !== 0 || my !== 0);
 
   // ── Stamina ──────────────────────────────────
   const actualSprinting = Player.updateStamina(dt, isSprinting, isMoving);
@@ -260,6 +262,31 @@ if (typeof SocketClient !== 'undefined') {
 
   SocketClient.on('onVehicleMoved', (data) => {
     if (typeof RemoteVehicles !== 'undefined') RemoteVehicles.updatePosition(data);
+  });
+
+  // ── PvP: เราโดนตี — server เป็นคนตัดสิน/ส่ง damage มาให้ตรงนี้เท่านั้น ──
+  SocketClient.on('onPlayerHit', (data) => {
+    if (typeof Player !== 'undefined' && typeof Player.takeDamage === 'function') {
+      Player.takeDamage(data.damage);
+    }
+  });
+
+  // ── PvP: มีคนตาย (ตัวเองหรือคนอื่น) — ถ้าเป็นคนอื่นให้ทำโมเดลโปร่งแสง ──
+  SocketClient.on('onPlayerDied', (data) => {
+    if (data.id === SocketClient.getSelfId()) {
+      if (typeof Player !== 'undefined' && !Player._isDead) Player.die();
+      return;
+    }
+    if (typeof RemotePlayers !== 'undefined') RemotePlayers.setDead(data.id, true);
+  });
+
+  // ── PvP: มีคนฟื้นคืนชีพ ──
+  SocketClient.on('onPlayerRespawned', (data) => {
+    if (data.id === SocketClient.getSelfId()) return; // ของตัวเอง จัดการใน Player.respawn() แล้ว
+    if (typeof RemotePlayers !== 'undefined') {
+      RemotePlayers.setDead(data.id, false);
+      RemotePlayers.updatePosition({ id: data.id, x: data.x, z: data.z, rotY: 0 });
+    }
   });
 
   SocketClient.on('onSelfId', () => {

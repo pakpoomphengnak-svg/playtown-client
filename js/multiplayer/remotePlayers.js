@@ -71,6 +71,7 @@ const RemotePlayers = (() => {
       lastZ: player.z,
       isMoving: false,
       _lastPacketTime: 0,
+      isDead: false,
       weaponId: null,       // weaponId ที่ถืออยู่ตอนนี้ | null
       weaponModel: null,    // THREE.Object3D ของโมเดลอาวุธที่แปะอยู่ | null
       isInVehicle: false,
@@ -178,12 +179,56 @@ const RemotePlayers = (() => {
     delete _players[id];
   }
 
+  // ── PvP: รายชื่อ id ผู้เล่นคนอื่นทั้งหมดที่อยู่ในฉากตอนนี้ ──
+  function getAllIds() {
+    return Object.keys(_players);
+  }
+
+  // ── PvP: ตำแหน่งปัจจุบัน (world position จริง ไม่ใช่ target ที่กำลัง lerp ไปหา) ──
+  function getPosition(id) {
+    const entry = _players[id];
+    if (!entry) return null;
+    return { x: entry.group.position.x, z: entry.group.position.z };
+  }
+
+  // ── PvP: ผู้เล่นคนนี้ตายอยู่ไหม ──
+  function isDead(id) {
+    const entry = _players[id];
+    return !!entry && !!entry.isDead;
+  }
+
+  // ── PvP: กำลังขับรถอยู่ไหม (ตีโดนไม่ได้ในเวอร์ชันนี้ — กันตียิงทะลุรถ) ──
+  function isInVehicle(id) {
+    const entry = _players[id];
+    return !!entry && !!entry.isInVehicle;
+  }
+
+  // ── PvP: ตั้งสถานะตาย/ฟื้น ของผู้เล่นคนอื่น (ใช้ตอน sync จาก server) ──
+  // ตาย → โมเดลโปร่งแสง + หยุดเล่นแอนิเมชันเดิน (อยู่ขนาดเดิม ไม่ล้มจริงเพื่อความง่าย/เสถียร)
+  function setDead(id, dead) {
+    const entry = _players[id];
+    if (!entry) return;
+    entry.isDead = !!dead;
+    if (entry.group) {
+      entry.group.traverse((child) => {
+        if (child.isMesh && child.material) {
+          child.material.transparent = true;
+          child.material.opacity = dead ? 0.35 : 1;
+        }
+      });
+    }
+    if (entry.nameSprite && entry.nameSprite.material) {
+      entry.nameSprite.material.opacity = dead ? 0.5 : 1;
+    }
+  }
+
   // ── เรียกทุก frame จาก game.js: เลื่อน mesh เข้าหาตำแหน่งล่าสุดแบบนุ่มๆ + เล่นอนิเมชั่น ──
   function update(dt) {
     const lerpSpeed = Math.min(1, 10 * dt);
     for (const id in _players) {
       const entry = _players[id];
       if (entry.isInVehicle) continue; // กำลังขับรถอยู่ — RemoteVehicles จัดการตำแหน่งให้แล้ว
+      if (entry.isDead) continue; // ตายอยู่ — หยุดนิ่ง ไม่ขยับ ไม่เล่นแอนิเมชันเดิน
       const g = entry.group;
 
       g.position.x += (entry.targetX - g.position.x) * lerpSpeed;
@@ -212,6 +257,6 @@ const RemotePlayers = (() => {
     for (const id in _players) remove(id);
   }
 
-  return { add, addAll, updatePosition, remove, update, clear };
+  return { add, addAll, updatePosition, remove, update, clear, getAllIds, getPosition, isDead, isInVehicle, setDead };
 
 })();

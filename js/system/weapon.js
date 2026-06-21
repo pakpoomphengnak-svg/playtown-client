@@ -147,34 +147,30 @@ const WeaponSystem = {
     const pz = Player.z ?? 0;
 
     // ── Remote Players ──────────────────────────────────
-    if (typeof RemotePlayers !== 'undefined' && RemotePlayers._players) {
-      for (const [socketId, entry] of Object.entries(RemotePlayers._players)) {
-        const rx = entry.x ?? (entry.mesh?.position?.x ?? 0);
-        const rz = entry.z ?? (entry.mesh?.position?.z ?? 0);
-        const dx = rx - px;
-        const dz = rz - pz;
+    // ใช้ RemotePlayers.getPosition(id) แทนการเข้าถึง _players ตรงๆ (closure private)
+    if (typeof RemotePlayers !== 'undefined' && typeof RemotePlayers.getAllIds === 'function') {
+      for (const socketId of RemotePlayers.getAllIds()) {
+        const pos = RemotePlayers.getPosition(socketId);
+        if (!pos) continue;
+        // คนที่ตายอยู่แล้ว หรือกำลังขับรถ → ตีไม่โดน (ขับรถมี hitbox แยก ไม่ได้ทำในเวอร์ชันนี้)
+        if (RemotePlayers.isDead && RemotePlayers.isDead(socketId)) continue;
+        if (RemotePlayers.isInVehicle && RemotePlayers.isInVehicle(socketId)) continue;
+
+        const dx = pos.x - px;
+        const dz = pos.z - pz;
         if (Math.sqrt(dx * dx + dz * dz) <= range) {
           // Wrap เป็น target interface เพื่อส่งไปให้ weapon.onAttack
           targets.push({
             id: socketId,
-            x: rx,
-            z: rz,
-            takeDamage(amount) {
-              // ส่งผ่าน socket ให้ server จัดการ damage จริง
-              if (typeof socket !== 'undefined') {
-                socket.emit('player-hit', { targetId: socketId, damage: amount });
+            x: pos.x,
+            z: pos.z,
+            takeDamage: (amount) => {
+              // ส่งไปให้ server ตัดสิน/หัก HP จริง (กันโกง damage จากฝั่งเรา)
+              // server จะ broadcast 'playerHit' กลับไปหา "เป้าหมาย" เองอีกที
+              if (typeof SocketClient !== 'undefined') {
+                SocketClient.attackPlayer(socketId, amount, this._equippedId);
               }
               console.log(`[WeaponSystem] ตี ${socketId}: -${amount} HP`);
-            },
-            applyStun(duration) {
-              if (typeof socket !== 'undefined') {
-                socket.emit('player-stun', { targetId: socketId, duration });
-              }
-            },
-            applyKnockback(kx, kz) {
-              if (typeof socket !== 'undefined') {
-                socket.emit('player-knockback', { targetId: socketId, kx, kz });
-              }
             },
           });
         }

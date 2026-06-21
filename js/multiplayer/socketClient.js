@@ -23,6 +23,10 @@ const SocketClient = (() => {
     onVehicleLockChanged:  null, // ({plate, locked}) → มีคนล็อก/ปลดล็อกรถ
     onVehicleDriverChanged:null, // ({plate, driverId, x?, z?, rotY?}) → มีคนขึ้น/ลงรถ
     onVehicleMoved:        null, // ({plate, x, z, rotY, speed, fuel}) → รถที่มีคนขับอยู่ขยับ
+    onPlayerHit:            null, // ({attackerId, damage}) → เราโดนตี (server เป็นคนตัดสินและส่งมา)
+    onPlayerHpChanged:      null, // ({id, hp}) → HP ผู้เล่นคนอื่นเปลี่ยน (ไว้ sync ของจริงถ้า server ส่งมา)
+    onPlayerDied:           null, // ({id, killerId}) → ผู้เล่นคนนั้นตาย
+    onPlayerRespawned:      null, // ({id, x, z}) → ผู้เล่นคนนั้นฟื้นแล้ว
   };
 
   // ── Connect ────────────────────────────────
@@ -112,6 +116,25 @@ const SocketClient = (() => {
     socket.on('vehicleMoved', (data) => {
       if (_handlers.onVehicleMoved) _handlers.onVehicleMoved(data);
     });
+
+    // ── PvP Events ───────────────────────────
+    // server เป็นคนตัดสินว่าตีโดนจริงไหม (ระยะ/cooldown ฝั่ง server) แล้วค่อยส่ง damage
+    // กลับมาให้ "เป้าหมาย" เท่านั้น กันโกง damage จากฝั่ง client คนตี
+    socket.on('playerHit', (data) => {
+      if (_handlers.onPlayerHit) _handlers.onPlayerHit(data);
+    });
+
+    socket.on('playerHpChanged', (data) => {
+      if (_handlers.onPlayerHpChanged) _handlers.onPlayerHpChanged(data);
+    });
+
+    socket.on('playerDied', (data) => {
+      if (_handlers.onPlayerDied) _handlers.onPlayerDied(data);
+    });
+
+    socket.on('playerRespawned', (data) => {
+      if (_handlers.onPlayerRespawned) _handlers.onPlayerRespawned(data);
+    });
   }
 
   // ── Join เกมหลัง connect แล้ว ─────────────
@@ -169,6 +192,18 @@ const SocketClient = (() => {
     socket.emit('updateVehiclePosition', { plate, x, z, rotY, speed, fuel });
   }
 
+  // ── PvP: แจ้ง server ว่าเราโจมตีโดน targetId (server ตรวจระยะ/cooldown ซ้ำแล้วค่อยหัก HP จริง) ──
+  function attackPlayer(targetId, damage, weaponId) {
+    if (!socket || !socket.connected) return;
+    socket.emit('attackPlayer', { targetId, damage, weaponId });
+  }
+
+  // ── PvP: แจ้ง server ว่าเราฟื้นแล้ว (กดปุ่ม respawn) ──
+  function playerRespawn() {
+    if (!socket || !socket.connected) return;
+    socket.emit('playerRespawn', {});
+  }
+
   // ── ผูก event handlers ─────────────────────
   function on(event, fn) {
     if (event in _handlers) _handlers[event] = fn;
@@ -182,6 +217,7 @@ const SocketClient = (() => {
   return {
     connect, joinGame, sendPosition, on, getSelfId, isConnected,
     vehicleRetrieve, vehicleStore, vehicleColor, vehicleLock, vehicleEnter, vehicleExit, sendVehiclePosition,
+    attackPlayer, playerRespawn,
   };
 
 })();

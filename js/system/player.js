@@ -187,10 +187,39 @@ const Player = {
     this.z = Math.max(-495, Math.min(495, this.z));
   },
 
+  // ── PvP: จุดเกิดใหม่ตอนตาย (ใช้ตำแหน่งเริ่มเกมเริ่มต้นเป็นจุด respawn) ──
+  respawnX: 110,
+  respawnZ: 70,
+  _isDead:  false,
+
+  // amount = ดาเมจดิบก่อนหักเกราะ — ถ้ามีเกราะ (HUD.armor) จะดูดดาเมจบางส่วนก่อน
+  // สูตร: เกราะดูด 50% ของดาเมจ จนกว่าเกราะจะหมด ส่วนที่เหลือ (ถ้ามี) ตกเป็น HP ตรงๆ
   takeDamage(amount) {
-    this.hp = Math.max(0, this.hp - amount);
+    if (this._isDead || amount <= 0) return;
+
+    let dmgToHp = amount;
+
+    // ── หักเกราะก่อน (ถ้ามี) ──
+    if (typeof HUD !== 'undefined' && HUD.stats && HUD.stats.armor && HUD.stats.armor.value > 0) {
+      const ARMOR_ABSORB_RATIO = 0.5; // เกราะรับไป 50% ของดาเมจ
+      const armorPortion = amount * ARMOR_ABSORB_RATIO;
+      const armorLeft = HUD.stats.armor.value;
+      const armorUsed = Math.min(armorPortion, armorLeft);
+      HUD.setStat('armor', armorLeft - armorUsed);
+      dmgToHp = amount - armorUsed;
+    }
+
+    this.hp = Math.max(0, this.hp - dmgToHp);
     console.log(`[Player] HP: ${this.hp}/${this.maxHp}`);
     if (typeof HUD !== 'undefined') HUD.setStat('hp', this.hp);
+
+    if (typeof Notification !== 'undefined') {
+      Notification.show(`โดนโจมตี! -${Math.round(dmgToHp)} HP`, { icon: '💢', color: '#e53935' });
+    }
+
+    if (this.hp <= 0 && !this._isDead) {
+      this.die();
+    }
   },
 
   heal(amount) {
@@ -199,7 +228,39 @@ const Player = {
   },
 
   isDead() {
-    return this.hp <= 0;
+    return this._isDead || this.hp <= 0;
+  },
+
+  // ── ตาย: ล็อกการขยับ/โจมตี ไว้จนกว่าจะกด respawn ──
+  die() {
+    this._isDead = true;
+    this.hp = 0;
+    if (typeof HUD !== 'undefined') HUD.setStat('hp', 0);
+
+    if (typeof Notification !== 'undefined') {
+      Notification.show('คุณเสียชีวิตแล้ว — แตะเพื่อฟื้นคืนชีพ', { icon: '💀', color: '#000000', duration: 999999 });
+    }
+
+    if (typeof showRespawnScreen === 'function') showRespawnScreen();
+  },
+
+  // ── ฟื้นคืนชีพ: เด้งกลับจุด respawn, เติม HP เต็ม ──
+  respawn() {
+    this._isDead = false;
+    this.hp = this.maxHp;
+    this.x  = this.respawnX;
+    this.z  = this.respawnZ;
+
+    if (typeof HUD !== 'undefined') HUD.setStat('hp', this.hp);
+    if (typeof hideRespawnScreen === 'function') hideRespawnScreen();
+
+    if (typeof SocketClient !== 'undefined' && SocketClient.isConnected()) {
+      SocketClient.playerRespawn();
+    }
+
+    if (typeof Notification !== 'undefined') {
+      Notification.show('ฟื้นคืนชีพแล้ว', { icon: '✨', color: '#4caf50' });
+    }
   },
 
   // hygiene = 0 → เก็บของ/แพ็คของไม่ได้ (เรียกใช้จาก applePickup.js, appleProgress.js)
@@ -242,3 +303,60 @@ const Player = {
   },
 
 };
+
+// ── หน้าจอตอนตาย — มืดจอ + ปุ่มฟื้นคืนชีพ ──
+// สร้างแบบ lazy ตอนเรียกครั้งแรก (ไม่ต้องรอ DOM พร้อมตอนโหลดไฟล์)
+let _respawnOverlayEl = null;
+
+function _ensureRespawnOverlay() {
+  if (_respawnOverlayEl || typeof document === 'undefined') return _respawnOverlayEl;
+
+  const el = document.createElement('div');
+  el.id = 'respawn-overlay';
+  Object.assign(el.style, {
+    position:       'fixed',
+    top:            '0',
+    left:           '0',
+    width:          '100%',
+    height:         '100%',
+    background:     'rgba(0,0,0,0.75)',
+    display:        'none',
+    flexDirection:  'column',
+    alignItems:     'center',
+    justifyContent: 'center',
+    gap:            '18px',
+    zIndex:         '999',
+  });
+
+  const title = document.createElement('div');
+  title.textContent = '💀 คุณเสียชีวิตแล้ว';
+  Object.assign(title.style, {
+    color: '#fff', fontSize: '28px', fontWeight: 'bold', fontFamily: 'sans-serif',
+  });
+
+  const btn = document.createElement('button');
+  btn.id = 'respawn-btn';
+  btn.textContent = '✨ ฟื้นคืนชีพ';
+  Object.assign(btn.style, {
+    padding: '14px 36px', fontSize: '18px', fontWeight: 'bold',
+    background: '#4caf50', color: '#fff', border: 'none', borderRadius: '999px',
+    cursor: 'pointer', fontFamily: 'sans-serif',
+  });
+  btn.addEventListener('click', () => Player.respawn());
+  btn.addEventListener('touchstart', (e) => { e.preventDefault(); Player.respawn(); }, { passive: false });
+
+  el.appendChild(title);
+  el.appendChild(btn);
+  document.body.appendChild(el);
+  _respawnOverlayEl = el;
+  return el;
+}
+
+function showRespawnScreen() {
+  const el = _ensureRespawnOverlay();
+  if (el) el.style.display = 'flex';
+}
+
+function hideRespawnScreen() {
+  if (_respawnOverlayEl) _respawnOverlayEl.style.display = 'none';
+}
