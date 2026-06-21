@@ -186,6 +186,10 @@ const Settings = (() => {
         top: 64px;
         right: 14px;
         width: 260px;
+        max-height: calc(100dvh - 78px);
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
         background: rgba(15,15,20,0.88);
         border: 1px solid rgba(255,255,255,0.12);
         border-radius: 14px;

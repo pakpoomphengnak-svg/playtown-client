@@ -30,6 +30,24 @@
     button, a, [role="button"] {
       -webkit-tap-highlight-color: transparent;
     }
+
+    /* ── Global scroll fix: panel/overlay ใดก็ตามที่ตั้ง overflow-y: auto/scroll
+       ไว้ (inventory, safeBox, vehicleStorage, storeShop, marketShop, settings,
+       gacha, craftTable, dealership, garage, gas, tuning, minimap ฯลฯ) ──
+       บางเบราว์เซอร์มือถือ (โดยเฉพาะ iOS Safari) ไม่ scroll แม้ตั้ง overflow-y: auto
+       แล้ว ถ้าไม่มี -webkit-overflow-scrolling / touch-action กำกับไว้ด้วย
+       กฎนี้ครอบคลุมทุก panel ที่มีอยู่และที่จะเพิ่มในอนาคต โดยไม่ต้องแก้ทีละไฟล์ ──
+    */
+    [style*="overflow-y: auto"],
+    [style*="overflow-y:auto"],
+    [style*="overflow-y: scroll"],
+    [style*="overflow-y:scroll"],
+    [style*="overflowY: auto"],
+    [style*="overflowY: 'auto'"] {
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+      touch-action: pan-y;
+    }
   </style>
   <script>
     document.addEventListener('selectstart', function(e) {
@@ -39,6 +57,43 @@
     document.addEventListener('contextmenu', function(e) {
       e.preventDefault();
     });
+
+    // ── Global scroll fix (runtime): ครอบคลุม element ที่ตั้ง overflow-y
+    //    ผ่าน JS (Object.assign(el.style, {...}) หรือ el.style.overflowY = ...)
+    //    ซึ่ง selector แบบ [style*=...] ด้านบนจับไม่ได้ทุกกรณี (เช่น browser
+    //    normalize ค่า, หรือ inline style เขียนคนละรูปแบบ)
+    //    ทำงานโดย MutationObserver + interval เบาๆ เพื่อ patch องค์ประกอบใหม่
+    //    ที่ panel ต่างๆ สร้างขึ้นแบบ dynamic (createElement) ตลอดเกม
+    (function () {
+      function patch(el) {
+        if (!el || el.dataset.scrollPatched) return;
+        const cs = window.getComputedStyle(el);
+        if (cs.overflowY === 'auto' || cs.overflowY === 'scroll') {
+          el.style.webkitOverflowScrolling = 'touch';
+          el.style.overscrollBehavior = 'contain';
+          if (!el.style.touchAction) el.style.touchAction = 'pan-y';
+          el.dataset.scrollPatched = '1';
+        }
+      }
+      function scan(root) {
+        if (!root || !root.querySelectorAll) return;
+        patch(root);
+        root.querySelectorAll('*').forEach(patch);
+      }
+      const observer = new MutationObserver((mutations) => {
+        mutations.forEach((m) => {
+          m.addedNodes.forEach((node) => {
+            if (node.nodeType === 1) scan(node);
+          });
+        });
+      });
+      function start() {
+        scan(document.body);
+        observer.observe(document.body, { childList: true, subtree: true });
+      }
+      if (document.body) start();
+      else document.addEventListener('DOMContentLoaded', start);
+    })();
   </script>
 </head>
 <body>
@@ -167,7 +222,7 @@
       ['js/building/parking.js', 'js/building/atm.js', 'js/building/showroom.js', 'js/building/tuningShop.js',
        'js/multiplayer/socketClient.js', 'js/system/player.js', 'js/system/notification.js', 'js/system/sound.js'],
       // GROUP 5: ต้องการ player, notification, scene
-      ['js/system/inventory.js', 'js/system/hotbar.js', 'js/system/hud.js', 'js/system/gacha.js', 'js/system/fps_counter.js'],
+      ['js/system/gridSize.js', 'js/system/inventory.js', 'js/system/hotbar.js', 'js/system/hud.js', 'js/system/gacha.js', 'js/system/fps_counter.js'],
       // GROUP 5b: weapon system (ต้องโหลดก่อน weapon defs และ item list)
       ['js/system/weapon.js'],
       ['js/item/cash.js', 'js/item/gachav1.js', 'js/item/burger.js', 'js/item/water_bottle.js', 'js/item/coffee.js', 'js/item/spray.js', 'js/item/apple.js', 'js/item/grape.js', 'js/item/log.js', 'js/item/rock.js', 'js/item/apple_packaged.js', 'js/item/juice_grape.js', 'js/item/woodplank.js', 'js/item/ironingot.js', 'js/item/goldingot.js', 'js/item/diamond.js', 'js/item/car_key.js', 'js/item/safe_key.js', 'js/item/cement.js', 'js/item/wire.js', 'js/item/weed.js', 'js/item/weed_baggy.js', 'js/item/r32_box.js', 'js/item/armor.js', 'js/item/bandage.js',

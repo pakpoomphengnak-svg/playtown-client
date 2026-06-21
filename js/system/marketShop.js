@@ -151,7 +151,13 @@ const MARKET_PRICES = (function () {
   });
   closeBtn.onclick = closeMarket;
 
+  // ── ปุ่มปรับขนาด grid (เล็ก/กลาง/ใหญ่) ──────────
+  const sizeToggle = (typeof GridSize !== 'undefined')
+    ? GridSize.buildToggle('marketShop', () => applyGridSize())
+    : null;
+
   header.appendChild(titleWrap);
+  if (sizeToggle) header.appendChild(sizeToggle);
   header.appendChild(closeBtn);
 
   // body — กริดไอเทม เต็ม panel
@@ -310,6 +316,19 @@ const MARKET_PRICES = (function () {
     .mkt-cell-price { font-size: 10px; color: #81c784; }
     #market-empty-hint { grid-column: 1/-1; text-align: center; color: #444; font-size: 13px; padding: 32px 0; }
     #market-section-label { color: #555; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 10px; }
+    /* ── ขนาด grid: เล็ก/ใหญ่ ── */
+    #market-overlay.gs-small .mkt-cell { padding: 6px 4px 5px; gap: 2px; }
+    #market-overlay.gs-small .mkt-cell-icon { font-size: 18px; width: 28px; height: 28px; }
+    #market-overlay.gs-small .mkt-cell-icon img { width: 28px; height: 28px; }
+    #market-overlay.gs-small .mkt-cell-name { font-size: 8px; }
+    #market-overlay.gs-small .mkt-cell-count { font-size: 10px; }
+    #market-overlay.gs-small .mkt-cell-price { font-size: 8px; }
+    #market-overlay.gs-large .mkt-cell { padding: 14px 8px 10px; }
+    #market-overlay.gs-large .mkt-cell-icon { font-size: 38px; width: 56px; height: 56px; }
+    #market-overlay.gs-large .mkt-cell-icon img { width: 56px; height: 56px; }
+    #market-overlay.gs-large .mkt-cell-name { font-size: 12px; }
+    #market-overlay.gs-large .mkt-cell-count { font-size: 14px; }
+    #market-overlay.gs-large .mkt-cell-price { font-size: 12px; }
     #market-qty-popup input::-webkit-outer-spin-button,
     #market-qty-popup input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
     #market-qty-popup, #market-qty-popup * {
@@ -408,6 +427,7 @@ const MARKET_PRICES = (function () {
     const grid = document.createElement('div');
     grid.id = 'market-grid';
     body.appendChild(grid);
+    applyGridSize();
 
     const ownedMap = {};
     (Inventory._slots || []).forEach(s => { if (s) ownedMap[s.id] = (ownedMap[s.id] || 0) + s.count; });
@@ -433,6 +453,16 @@ const MARKET_PRICES = (function () {
       if (owned > 0) cell.addEventListener('click', () => openQtyPopup(itemId, owned, price, def));
       grid.appendChild(cell);
     });
+  }
+
+  // ── ปรับขนาดช่อง grid ตามขนาดที่ผู้เล่นเลือก (เล็ก/กลาง/ใหญ่) ──
+  function applyGridSize() {
+    const size = (typeof GridSize !== 'undefined') ? GridSize.get() : 'medium';
+    const px   = (typeof GridSize !== 'undefined') ? GridSize.minmaxPx(size) : 80;
+    const grid = document.getElementById('market-grid');
+    if (grid) grid.style.gridTemplateColumns = `repeat(auto-fill, minmax(${px}px, 1fr))`;
+    overlay.classList.remove('gs-small', 'gs-medium', 'gs-large');
+    overlay.classList.add('gs-' + size);
   }
 
   // ── เปิด Qty Popup ───────────────────────────

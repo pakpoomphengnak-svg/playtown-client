@@ -79,6 +79,11 @@ const STORE_ITEMS = {
   titleWrap.appendChild(titleEl);
   titleWrap.appendChild(cashBadge);
 
+  // ── ปุ่มปรับขนาด grid (เล็ก/กลาง/ใหญ่) ──────────
+  const sizeToggle = (typeof GridSize !== 'undefined')
+    ? GridSize.buildToggle('storeShop', () => applyGridSize())
+    : null;
+
   const closeBtn = document.createElement('button');
   closeBtn.textContent = '✕';
   Object.assign(closeBtn.style, {
@@ -90,6 +95,7 @@ const STORE_ITEMS = {
   closeBtn.onclick = closeStore;
 
   header.appendChild(titleWrap);
+  if (sizeToggle) header.appendChild(sizeToggle);
   header.appendChild(closeBtn);
 
   // body — กริดไอเทม เต็ม panel
@@ -255,6 +261,15 @@ const STORE_ITEMS = {
     .str-cell-price { font-size: 12px; font-weight: 700; color: #81c784; }
     #store-empty-hint { grid-column: 1/-1; text-align: center; color: #444; font-size: 13px; padding: 32px 0; }
     #store-section-label { color: #555; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 10px; }
+    /* ── ขนาด grid: เล็ก/ใหญ่ ── */
+    #store-overlay.gs-small .str-cell { padding: 6px 4px 5px; gap: 2px; }
+    #store-overlay.gs-small .str-cell-icon { font-size: 18px; }
+    #store-overlay.gs-small .str-cell-name { font-size: 8px; }
+    #store-overlay.gs-small .str-cell-price { font-size: 9px; }
+    #store-overlay.gs-large .str-cell { padding: 14px 8px 10px; }
+    #store-overlay.gs-large .str-cell-icon { font-size: 36px; }
+    #store-overlay.gs-large .str-cell-name { font-size: 12px; }
+    #store-overlay.gs-large .str-cell-price { font-size: 14px; }
     #store-qty-popup input::-webkit-outer-spin-button,
     #store-qty-popup input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
     #store-qty-popup, #store-qty-popup * {
@@ -390,6 +405,7 @@ const STORE_ITEMS = {
     const grid = document.createElement('div');
     grid.id = 'store-grid';
     body.appendChild(grid);
+    applyGridSize();
 
     const entries = Object.entries(STORE_ITEMS);
 
@@ -422,6 +438,16 @@ const STORE_ITEMS = {
       cell.addEventListener('click', () => openQtyPopup(itemId, price, def));
       grid.appendChild(cell);
     });
+  }
+
+  // ── ปรับขนาดช่อง grid ตามขนาดที่ผู้เล่นเลือก (เล็ก/กลาง/ใหญ่) ──
+  function applyGridSize() {
+    const size = (typeof GridSize !== 'undefined') ? GridSize.get() : 'medium';
+    const px   = (typeof GridSize !== 'undefined') ? GridSize.minmaxPx(size) : 80;
+    const grid = document.getElementById('store-grid');
+    if (grid) grid.style.gridTemplateColumns = `repeat(auto-fill, minmax(${px}px, 1fr))`;
+    overlay.classList.remove('gs-small', 'gs-medium', 'gs-large');
+    overlay.classList.add('gs-' + size);
   }
 
   // ── เปิด Qty Popup ───────────────────────────

@@ -189,7 +189,13 @@ const VehicleStorage = {
     fontSize: '20px', cursor: 'pointer', padding: '0 4px',
     lineHeight: '1',
   });
+  // ── ปุ่มปรับขนาด grid (เล็ก/กลาง/ใหญ่) ──────────
+  const sizeToggle = (typeof GridSize !== 'undefined')
+    ? GridSize.buildToggle('vehicleStorage', () => applyGridSize())
+    : null;
+
   header.appendChild(titleWrap);
+  if (sizeToggle) header.appendChild(sizeToggle);
   header.appendChild(closeBtn);
 
   // ── Body: inventory (left) + trunk slots (right) ──
@@ -299,6 +305,13 @@ const VehicleStorage = {
       text-shadow: 0 1px 3px #000;
       background: rgba(0,0,0,0.55); border-radius: 5px; padding: 0 4px; line-height: 1.5;
     }
+    /* ── ขนาด grid: เล็ก/ใหญ่ ── */
+    #vstorage-overlay.gs-small .vstorage-cell-icon { width: 18px; height: 18px; font-size: 15px; }
+    #vstorage-overlay.gs-small .vstorage-cell-name { font-size: 6px; }
+    #vstorage-overlay.gs-small .vstorage-cell-count { font-size: 8px; }
+    #vstorage-overlay.gs-large .vstorage-cell-icon { width: 36px; height: 36px; font-size: 30px; }
+    #vstorage-overlay.gs-large .vstorage-cell-name { font-size: 10px; }
+    #vstorage-overlay.gs-large .vstorage-cell-count { font-size: 12px; }
   `;
   document.head.appendChild(cardStyle);
 
@@ -492,11 +505,22 @@ const VehicleStorage = {
     divider.style.margin       = narrow ? '12px 0' : '0 4px';
     invSection.style.paddingRight   = narrow ? '0' : '14px';
     trunkSection.style.paddingLeft  = narrow ? '0' : '14px';
-    invGrid.style.gridTemplateColumns   = narrow ? 'repeat(5, 1fr)' : 'repeat(4, 1fr)';
-    trunkGrid.style.gridTemplateColumns = narrow ? 'repeat(5, 1fr)' : 'repeat(4, 1fr)';
+    applyGridSize(narrow);
   }
   applyResponsiveLayout();
   window.addEventListener('resize', applyResponsiveLayout);
+
+  // ── ปรับจำนวนคอลัมน์ grid ตามขนาดที่ผู้เล่นเลือก (เล็ก/กลาง/ใหญ่) ──
+  function applyGridSize(narrowOverride) {
+    const narrow = narrowOverride !== undefined ? narrowOverride : (window.innerWidth < 560);
+    const base = narrow ? 5 : 4;
+    const size = (typeof GridSize !== 'undefined') ? GridSize.get() : 'medium';
+    const cols = (typeof GridSize !== 'undefined') ? GridSize.columns(size, base) : base;
+    invGrid.style.gridTemplateColumns   = `repeat(${cols}, 1fr)`;
+    trunkGrid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+    overlay.classList.remove('gs-small', 'gs-medium', 'gs-large');
+    overlay.classList.add('gs-' + size);
+  }
 
   // ── Helpers ──────────────────────────────────
   function itemDef(id) {
@@ -746,6 +770,7 @@ const VehicleStorage = {
       : null;
     titleEl.textContent = `🧰 ท้ายรถ — ${item ? item.name : v.plate}`;
 
+    applyGridSize();
     render();
     overlay.style.display = 'flex';
     openBtn.style.display = 'none';

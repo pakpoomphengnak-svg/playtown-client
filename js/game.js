@@ -51,8 +51,8 @@ const POS_SEND_INTERVAL = 0.1; // วินาที (10 ครั้ง/วิ)
 
 // ── Sound: จังหวะเสียงฝีเท้า (walk.ogg) — เดินช้ากว่าวิ่ง ──
 let _footstepTimer = 0;
-const FOOTSTEP_INTERVAL_WALK  = 0.42; // วินาทีต่อก้าวตอนเดิน
-const FOOTSTEP_INTERVAL_SPRINT = 0.27; // วินาทีต่อก้าวตอนวิ่ง
+const FOOTSTEP_INTERVAL_WALK  = 0.6283; // วินาทีต่อก้าวตอนเดิน
+const FOOTSTEP_INTERVAL_SPRINT = 0.3927; // วินาทีต่อก้าวตอนวิ่ง
 
 // ── Multiplayer: บอกคนอื่นว่าเรากำลังโจมตี (ส่งครั้งเดียวตอนเริ่มท่า ไม่ส่งซ้ำทุกเฟรม) ──
 let _attackToSend = false;
@@ -111,8 +111,8 @@ function animate() {
     const dx    = Math.sin(angle) * len * speed * dt;
     const dz    = Math.cos(angle) * len * speed * dt;
 
-    const nx = Math.max(-490, Math.min(490, Player.x + dx));
-    const nz = Math.max(-490, Math.min(490, Player.z + dz));
+    const nx = Math.max(-990, Math.min(990, Player.x + dx));
+    const nz = Math.max(-990, Math.min(990, Player.z + dz));
 
     if (!checkCollision(nx, Player.z)) Player.x = nx;
     if (!checkCollision(Player.x, nz)) Player.z = nz;

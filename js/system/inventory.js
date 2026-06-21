@@ -434,6 +434,19 @@ const Inventory = {
         grid-template-columns: repeat(8, 1fr);
         gap: 4px;
       }
+      /* ── ขนาด grid: เล็ก/กลาง/ใหญ่ ── */
+      #inv-overlay.gs-small #inv-grid { grid-template-columns: repeat(10, 1fr); gap: 3px; }
+      #inv-overlay.gs-large #inv-grid { grid-template-columns: repeat(6, 1fr); gap: 5px; }
+      #inv-overlay.gs-small .inv-cell-icon { font-size: 11px; }
+      #inv-overlay.gs-large .inv-cell-icon { font-size: 20px; }
+      #inv-overlay.gs-small .inv-cell-name { font-size: 5px; }
+      #inv-overlay.gs-large .inv-cell-name { font-size: 8px; }
+      #inv-overlay.gs-small .inv-cell-count { font-size: 6px; }
+      #inv-overlay.gs-large .inv-cell-count { font-size: 9px; }
+      #inv-overlay.landscape.gs-small #inv-grid { grid-template-columns: repeat(11, 1fr); }
+      #inv-overlay.landscape.gs-large #inv-grid { grid-template-columns: repeat(6, 1fr); }
+      #inv-overlay.landscape.gs-small .inv-cell-icon { font-size: 11px; }
+      #inv-overlay.landscape.gs-large .inv-cell-icon { font-size: 17px; }
       .inv-cell {
         aspect-ratio: 1;
         background: rgba(255,255,255,0.03);
@@ -609,12 +622,18 @@ const Inventory = {
     headerLeft.appendChild(title);
     headerLeft.appendChild(badge);
 
+    // ── ปุ่มปรับขนาด grid (เล็ก/กลาง/ใหญ่) ──────────
+    const sizeToggle = (typeof GridSize !== 'undefined')
+      ? GridSize.buildToggle('inventory', () => Inventory._applyGridSize())
+      : null;
+
     const closeBtn = document.createElement('button');
     closeBtn.id = 'inv-close';
     closeBtn.textContent = '✕';
     closeBtn.onclick = () => Inventory.closeUI();
 
     header.appendChild(headerLeft);
+    if (sizeToggle) header.appendChild(sizeToggle);
     header.appendChild(closeBtn);
 
     // content row
@@ -1156,9 +1175,18 @@ const Inventory = {
     }
   },
 
+  // ── ใช้ค่าขนาด grid ปัจจุบันกับ overlay (เล็ก/กลาง/ใหญ่) ──────
+  _applyGridSize() {
+    if (!this._uiEl || typeof GridSize === 'undefined') return;
+    const size = GridSize.get();
+    this._uiEl.classList.remove('gs-small', 'gs-medium', 'gs-large');
+    this._uiEl.classList.add('gs-' + size);
+  },
+
   openUI() {
     if (!this._uiEl) this._buildUI();
     this._updateOrientation();
+    this._applyGridSize();
     this._renderUI();
     this._uiEl.style.display = 'flex';
     this._uiOpen = true;
