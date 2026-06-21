@@ -80,6 +80,34 @@ const CRAFT_RECIPES = {
     },
   ],
   ตีบวกอาวุธ: [
+    {
+      id:          'bottle1',
+      resultQty:   1,
+      materials:   [
+        { id: 'bottle',    qty: 1 },
+        { id: 'ironingot', qty: 20 },
+        { id: 'goldingot', qty: 15 },
+        { id: 'diamond',   qty: 5 },
+        { id: 'cash',      qty: 0 },
+        { id: 'dirty_cash', qty: 200 },
+      ],
+      successRate: 40,
+      craftTime:   8,
+    },
+    {
+      id:          'poolcue1',
+      resultQty:   1,
+      materials:   [
+        { id: 'poolcue',   qty: 1 },
+        { id: 'woodplank', qty: 20 },
+        { id: 'goldingot', qty: 15 },
+        { id: 'diamond',   qty: 5 },
+        { id: 'cash',      qty: 0 },
+        { id: 'dirty_cash', qty: 200 },
+      ],
+      successRate: 40,
+      craftTime:   8,
+    },
   ],
 };
 
