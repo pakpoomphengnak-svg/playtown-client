@@ -214,6 +214,7 @@ const Garage = {
     if (!vState.stored) {
       vState.stored = true;
     }
+    vState.lost = false;
     if (fuelSnapshot !== null) vState.fuel = fuelSnapshot;
     this._save(state);
 
@@ -222,19 +223,13 @@ const Garage = {
 
   // ── force-park รถทุกคัน "ที่เราเป็นเจ้าของ" เท่านั้น ──
   // (ไม่แตะรถของผู้เล่นคนอื่นที่บังเอิญอยู่ในโลกเดียวกัน แม้จะจอดอยู่ในวงเก็บรถตอนนี้ก็ตาม)
+  // หมายเหตุ: เรียกตอน pagehide/beforeunload — รถที่ยัง spawn อยู่ใน vehicles[] ตอนนี้
+  // จะถูกเก็บกลับการาจให้แบบปกติ (ไม่เสียเงิน) ส่วนรถที่ state ค้างเป็น stored:false
+  // แต่ไม่ได้ spawn อยู่แล้ว (เช่น sync ไม่ทัน/แอปถูกปิดกะทันหันจนเรียกฟังก์ชันนี้ไม่ทัน)
+  // จะถูกตรวจจับเป็น "รถหาย" ตอนเข้าเกมครั้งถัดไปใน initSpawnFromState() แทน
   forceStoreAll() {
     const plates = vehicles.map(v => v.plate).filter(Boolean).filter(plate => this._hasKeyFor(plate));
     plates.forEach(plate => this.forceStoreVehicle(plate));
-
-    const state = this._load();
-    let changed = false;
-    Object.keys(state).forEach(plate => {
-      if (!state[plate].stored) {
-        state[plate].stored = true;
-        changed = true;
-      }
-    });
-    if (changed) this._save(state);
   },
 
   // ── ตรวจสอบว่าเบิกรถได้ไหม ──
@@ -245,6 +240,7 @@ const Garage = {
     if (!this._hasKeyFor(plate)) return { ok: false, reason: `ต้องมีกุญแจรถทะเบียน ${plate} ในกระเป๋าก่อนถึงจะเบิกรถได้ 🔑` };
     const state  = this._load();
     const vState = this._getVehicleState(state, plate);
+    if (vState.lost)              return { ok: false, reason: 'รถคันนี้สูญหาย ต้องกู้คืนก่อนถึงจะเบิกได้ (แท็บ "กู้คืนยานพาหนะ")' };
     if (!vState.stored)          return { ok: false, reason: 'รถคันนี้เบิกออกมาอยู่แล้ว' };
     if (this._findSpawned(plate)) return { ok: false, reason: 'รถคันนี้อยู่ในโลกอยู่แล้ว' };
     return { ok: true };
@@ -262,6 +258,10 @@ const Garage = {
 
     const state = this._load();
     const vState = this._getVehicleState(state, plate);
+
+    if (vState.lost) {
+      return { ok: false, reason: 'รถคันนี้สูญหาย ต้องกู้คืนก่อนถึงจะเบิกได้ (แท็บ "กู้คืนยานพาหนะ")' };
+    }
 
     if (!vState.stored) {
       return { ok: false, reason: 'รถคันนี้เบิกออกมาอยู่แล้ว' };
@@ -357,6 +357,7 @@ const Garage = {
     const state = this._load();
     const vState = this._getVehicleState(state, plate);
     vState.stored = true;
+    vState.lost   = false;
     // ── บันทึกน้ำมันของรถคันนี้ก่อนเก็บ ──
     if (typeof v.fuel === 'number') vState.fuel = v.fuel;
     this._save(state);
@@ -404,16 +405,79 @@ const Garage = {
   },
 
   // ── ตอนเริ่มเกม: เคลียร์ state ที่ค้างเป็น stored:false ──
+  // รถที่ stored:false ค้างจากเซสชันก่อน (ออกเกม/หลุดเกม/แอปถูกปิดกะทันหันตอนเอารถ
+  // ออกมาขับอยู่ โดยไม่ทันได้เก็บเข้าการาจ) จะถือว่า "สูญหาย" — ต้องเสียเงินกู้คืน
+  // ที่แท็บ "กู้คืนยานพาหนะ" ในการาจ แทนที่จะได้คืนฟรีๆ เหมือนเดิม
   initSpawnFromState() {
     const state = this._load();
     let changed = false;
     Object.keys(state).forEach(plate => {
-      if (!state[plate].stored) {
+      if (!state[plate].stored && !state[plate].lost) {
         state[plate].stored = true;
+        state[plate].lost   = true;
         changed = true;
       }
     });
     if (changed) this._save(state);
+  },
+
+  // ── ค่าใช้จ่ายในการกู้คืนรถที่สูญหาย ──
+  LOST_RECOVERY_COST: 1000,
+
+  // ── รายชื่อรถที่เป็นเจ้าของ "และ" สูญหายอยู่ตอนนี้ ──
+  getLostVehicles() {
+    const owned = Dealership.getOwnedVehicles();
+    const state = this._load();
+    return owned.filter(v => {
+      const vState = state[v.plate];
+      return vState && vState.lost;
+    });
+  },
+
+  // ── ตรวจสอบว่ากู้คืนรถคันนี้ได้ไหม ──
+  canRecover(plate) {
+    const owned = Dealership.getOwnedVehicles();
+    const record = owned.find(v => v.plate === plate);
+    if (!record) return { ok: false, reason: 'ไม่พบรถทะเบียนนี้ในกรรมสิทธิ์ของคุณ' };
+
+    const state  = this._load();
+    const vState = state[plate];
+    if (!vState || !vState.lost) return { ok: false, reason: 'รถคันนี้ไม่ได้สูญหาย' };
+
+    if (typeof Cash === 'undefined') return { ok: false, reason: 'ระบบเงินยังไม่พร้อม' };
+    if (!Cash.has('cash', this.LOST_RECOVERY_COST)) {
+      return { ok: false, reason: `เงินไม่พอกู้คืนรถคันนี้ (ต้องการ 💵 ${this.LOST_RECOVERY_COST.toLocaleString()})` };
+    }
+    return { ok: true };
+  },
+
+  // ── กู้คืนรถที่สูญหาย: หักเงิน 1,000 → ตั้งกลับเป็น "อยู่ในการาจ" ตามปกติ ──
+  recoverVehicle(plate) {
+    const check = this.canRecover(plate);
+    if (!check.ok) return check;
+
+    if (!Cash.remove('cash', this.LOST_RECOVERY_COST)) {
+      return { ok: false, reason: 'หักเงินไม่สำเร็จ' };
+    }
+
+    const state  = this._load();
+    const vState = this._getVehicleState(state, plate);
+    vState.stored = true;
+    vState.lost   = false;
+    // ── รถที่กู้คืนมา ไม่รู้ตำแหน่งเดิมแล้ว → spawn ใหม่ที่จุดเบิกรถแห่งแรกเสมอ ──
+    const loc = GARAGE_LOCATIONS[0];
+    vState.x = loc.retrieve.x; vState.z = loc.retrieve.z; vState.rotY = 0;
+    this._save(state);
+
+    const owned = Dealership.getOwnedVehicles();
+    const record = owned.find(o => o.plate === plate);
+    const item = record ? DEALERSHIP_CATALOG[record.type] : null;
+    if (typeof Notification !== 'undefined') {
+      Notification.showItemCard({ type: 'gain', emoji: '🚗', itemName: item ? item.name : plate, amount: plate });
+      Notification.showItemCard({ type: 'lose', emoji: '💵', itemName: 'จ่ายเงินสด', amount: this.LOST_RECOVERY_COST.toLocaleString() });
+    }
+
+    return { ok: true };
   },
 };
 
@@ -458,11 +522,43 @@ const Garage = {
       color: #555; font-size: 10px; letter-spacing: 0.12em;
       text-transform: uppercase; margin-bottom: 10px;
     }
+    /* ── Tab bar (เช่น การาจ / กู้คืนยานพาหนะ) ── */
+    .garage-tabbar {
+      display: flex; gap: 6px;
+      padding: 10px 16px 0;
+      background: rgba(255,255,255,0.04);
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+    }
+    .garage-tab-btn {
+      flex: 1; border: none; background: transparent;
+      color: #888; font-size: 12px; font-weight: 700;
+      padding: 9px 6px; border-radius: 8px 8px 0 0;
+      cursor: pointer; font-family: inherit;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none; -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      display: flex; align-items: center; justify-content: center; gap: 5px;
+      transition: background 0.15s, color 0.15s;
+      border-bottom: 2px solid transparent;
+    }
+    .garage-tab-btn.active {
+      color: #fff; background: rgba(255,255,255,0.06);
+      border-bottom: 2px solid rgba(245,124,0,0.92);
+    }
+    .garage-tab-badge {
+      background: rgba(229,57,53,0.92); color: #fff;
+      font-size: 10px; font-weight: 700; line-height: 1;
+      padding: 2px 6px; border-radius: 8px; min-width: 14px; text-align: center;
+    }
+    .garage-row-btn.recover { background: rgba(245,124,0,0.92); color: #fff; }
+    .garage-row-cost { font-size: 11px; color: #ffb74d; margin-top: 2px; font-weight: 700; }
   `;
   document.head.appendChild(style);
 
   // ── สร้างชุด UI ของวงหนึ่งๆ ──────────────────
-  function buildZoneUI({ id, btnLabel, accentColor, panelTitle, onOpen }) {
+  // tabs (optional): [{ key, label, icon, onOpen }] — ถ้าระบุ จะมีแถบแท็บด้านบน body
+  // และ onOpen ของแต่ละ tab จะถูกเรียกแทน onOpen หลักเมื่อสลับ/เปิดแท็บนั้น
+  function buildZoneUI({ id, btnLabel, accentColor, panelTitle, onOpen, tabs }) {
     const btn = document.createElement('div');
     btn.id = id + '-btn';
     btn.className = 'garage-overlay-root';
@@ -524,17 +620,57 @@ const Garage = {
     header.appendChild(titleEl);
     header.appendChild(closeBtn);
 
+    panel.appendChild(header);
+
+    // ── Tab bar (ถ้ามี) ──────────────────────────
+    let _activeTabKey = tabs && tabs.length ? tabs[0].key : null;
+    let tabButtons = {};
+    if (tabs && tabs.length) {
+      const tabbar = document.createElement('div');
+      tabbar.className = 'garage-tabbar';
+      tabs.forEach((tab) => {
+        const tBtn = document.createElement('button');
+        tBtn.type = 'button';
+        tBtn.className = 'garage-tab-btn' + (tab.key === _activeTabKey ? ' active' : '');
+        tBtn.appendChild(document.createTextNode((tab.icon ? tab.icon + ' ' : '') + tab.label));
+        if (tab.badge) {
+          const badge = document.createElement('span');
+          badge.className = 'garage-tab-badge';
+          badge.id = id + '-tab-badge-' + tab.key;
+          badge.style.display = 'none';
+          tBtn.appendChild(badge);
+        }
+        tBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          _setActiveTab(tab.key);
+        });
+        tabbar.appendChild(tBtn);
+        tabButtons[tab.key] = tBtn;
+      });
+      panel.appendChild(tabbar);
+    }
+
     const body = document.createElement('div');
     body.id = id + '-body';
     Object.assign(body.style, { padding: '14px 16px', overflowY: 'auto', flex: '1' });
 
-    panel.appendChild(header);
     panel.appendChild(body);
     overlay.appendChild(panel);
     document.body.appendChild(overlay);
 
+    function _setActiveTab(key) {
+      _activeTabKey = key;
+      Object.keys(tabButtons).forEach(k => tabButtons[k].classList.toggle('active', k === key));
+      const tab = tabs.find(t => t.key === key);
+      if (tab && typeof tab.onOpen === 'function') tab.onOpen();
+    }
+
     function open() {
-      if (typeof onOpen === 'function') onOpen();
+      if (tabs && tabs.length) {
+        _setActiveTab(_activeTabKey);
+      } else if (typeof onOpen === 'function') {
+        onOpen();
+      }
       overlay.style.display = 'flex';
     }
     function close() { overlay.style.display = 'none'; }
@@ -545,7 +681,19 @@ const Garage = {
     btn.addEventListener('touchstart', (e) => { e.preventDefault(); open(); }, { passive: false });
     btn.addEventListener('click', open);
 
-    return { btn, overlay, body, open, close };
+    // ── อัปเดต badge ตัวเลขบนแท็บ (เช่นจำนวนรถที่สูญหาย) ──
+    function setTabBadge(key, count) {
+      const badge = document.getElementById(id + '-tab-badge-' + key);
+      if (!badge) return;
+      if (count > 0) {
+        badge.textContent = String(count);
+        badge.style.display = 'inline-block';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+
+    return { btn, overlay, body, open, close, setTabBadge, setActiveTab: _setActiveTab };
   }
 
   // ── Loading overlay สำหรับเบิกรถ ──
@@ -634,8 +782,17 @@ const Garage = {
   const retrieveUI = buildZoneUI({
     id: 'garage-retrieve', btnLabel: '🔑 เบิกรถ',
     accentColor: 'rgba(245,124,0,0.92)', panelTitle: '🔑 เบิกรถ',
-    onOpen: () => renderRetrieveList(_currentRetrieveLocIndex),
+    tabs: [
+      { key: 'garage',  label: 'การาจ',          icon: '🅿️', onOpen: () => renderRetrieveList(_currentRetrieveLocIndex) },
+      { key: 'recover', label: 'กู้คืนยานพาหนะ', icon: '🚨', badge: true, onOpen: () => renderLostList() },
+    ],
   });
+
+  // ── อัปเดต badge จำนวนรถที่สูญหายบนแท็บ "กู้คืนยานพาหนะ" ──
+  function _refreshLostBadge() {
+    const count = (typeof Garage.getLostVehicles === 'function') ? Garage.getLostVehicles().length : 0;
+    retrieveUI.setTabBadge('recover', count);
+  }
 
   // ── Render: รายการรถที่ "อยู่ในการาจ" → เบิกได้ ──
   function renderRetrieveList(locIndex) {
@@ -652,7 +809,7 @@ const Garage = {
 
     const candidates = owned.filter((v) => {
       const vState = state[v.plate];
-      return !vState || vState.stored;
+      return (!vState || vState.stored) && !(vState && vState.lost);
     });
 
     const storedList = candidates.filter((v) => {
@@ -739,6 +896,195 @@ const Garage = {
     });
   }
 
+  // ── Recovery Confirm Popup (ลอยเหนือ overlay เบิกรถ) ────────
+  const recoverConfirmPopup = document.createElement('div');
+  recoverConfirmPopup.id = 'garage-recover-confirm-popup';
+  recoverConfirmPopup.className = 'garage-overlay-root';
+  Object.assign(recoverConfirmPopup.style, {
+    position: 'fixed', inset: '0',
+    display: 'none', alignItems: 'center', justifyContent: 'center',
+    zIndex: '9000', fontFamily: "'Segoe UI', sans-serif",
+  });
+
+  const recoverConfirmBackdrop = document.createElement('div');
+  Object.assign(recoverConfirmBackdrop.style, {
+    position: 'absolute', inset: '0',
+    background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(2px)',
+  });
+
+  const recoverConfirmCard = document.createElement('div');
+  Object.assign(recoverConfirmCard.style, {
+    position: 'relative', zIndex: '1',
+    background: '#161618', border: '1px solid rgba(245,124,0,0.25)',
+    borderRadius: '14px', width: 'min(360px, 90vw)',
+    padding: '20px 20px 16px', boxShadow: '0 20px 50px rgba(0,0,0,0.9)',
+    display: 'flex', flexDirection: 'column', gap: '14px',
+  });
+
+  const recoverConfirmLabel = document.createElement('div');
+  Object.assign(recoverConfirmLabel.style, {
+    display: 'flex', alignItems: 'center', gap: '10px',
+    color: '#ddd', fontSize: '15px', fontWeight: '700',
+  });
+
+  const recoverConfirmHint = document.createElement('div');
+  Object.assign(recoverConfirmHint.style, { color: '#888', fontSize: '12px', lineHeight: '1.5' });
+  recoverConfirmHint.textContent = 'รถคันนี้สูญหายจากการออกเกม/หลุดเกมโดยไม่ได้เก็บเข้าการาจ ต้องเสียค่ากู้คืนก่อนถึงจะเบิกได้อีกครั้ง';
+
+  const recoverConfirmPriceEl = document.createElement('div');
+  Object.assign(recoverConfirmPriceEl.style, {
+    textAlign: 'right', color: '#ffb74d', fontWeight: '700', fontSize: '16px',
+  });
+
+  const recoverConfirmActions = document.createElement('div');
+  Object.assign(recoverConfirmActions.style, { display: 'flex', gap: '8px' });
+
+  const recoverCancelBtn = document.createElement('button');
+  recoverCancelBtn.textContent = 'ยกเลิก';
+  Object.assign(recoverCancelBtn.style, {
+    flex: '1', padding: '11px', border: '1px solid rgba(255,255,255,0.12)',
+    borderRadius: '8px', background: 'transparent', color: '#888',
+    fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit',
+  });
+
+  const recoverConfirmBtn = document.createElement('button');
+  recoverConfirmBtn.textContent = '🚨 กู้คืนเลย';
+  Object.assign(recoverConfirmBtn.style, {
+    flex: '2', padding: '11px', border: 'none', borderRadius: '8px',
+    background: 'rgba(245,124,0,0.92)', color: '#fff', fontSize: '14px',
+    fontWeight: '700', cursor: 'pointer', fontFamily: 'inherit',
+  });
+
+  recoverConfirmActions.appendChild(recoverCancelBtn);
+  recoverConfirmActions.appendChild(recoverConfirmBtn);
+
+  recoverConfirmCard.appendChild(recoverConfirmLabel);
+  recoverConfirmCard.appendChild(recoverConfirmHint);
+  recoverConfirmCard.appendChild(recoverConfirmPriceEl);
+  recoverConfirmCard.appendChild(recoverConfirmActions);
+
+  recoverConfirmPopup.appendChild(recoverConfirmBackdrop);
+  recoverConfirmPopup.appendChild(recoverConfirmCard);
+  document.body.appendChild(recoverConfirmPopup);
+
+  let _recoverTargetPlate = null;
+
+  function _closeRecoverConfirm() {
+    recoverConfirmPopup.style.display = 'none';
+    _recoverTargetPlate = null;
+  }
+  recoverConfirmBackdrop.addEventListener('click', _closeRecoverConfirm);
+  recoverCancelBtn.addEventListener('click', _closeRecoverConfirm);
+
+  function _openRecoverConfirm(plate, item) {
+    _recoverTargetPlate = plate;
+    recoverConfirmLabel.innerHTML = '';
+    const iconSpan = document.createElement('span');
+    iconSpan.style.cssText = 'font-size:22px;';
+    iconSpan.textContent = item ? item.emoji : '🚗';
+    const nameSpan = document.createElement('span');
+    nameSpan.textContent = (item ? item.name : plate) + ` (${plate})`;
+    recoverConfirmLabel.appendChild(iconSpan);
+    recoverConfirmLabel.appendChild(nameSpan);
+    recoverConfirmPriceEl.textContent = `ค่ากู้คืน 💵 ${Garage.LOST_RECOVERY_COST.toLocaleString()}`;
+    recoverConfirmPopup.style.display = 'flex';
+  }
+
+  recoverConfirmBtn.addEventListener('click', () => {
+    const plate = _recoverTargetPlate;
+    if (!plate) return;
+    const result = Garage.recoverVehicle(plate);
+    _closeRecoverConfirm();
+    if (!result.ok) {
+      Notification.show(result.reason, { icon: '❌', color: '#f44336' });
+      return;
+    }
+    _refreshLostBadge();
+    renderLostList();
+  });
+
+  // ── Render: รายการรถที่ "สูญหาย" → ต้องกู้คืนก่อนถึงจะเบิกได้ ──
+  function renderLostList() {
+    const body = retrieveUI.body;
+    body.innerHTML = '';
+
+    const label = document.createElement('div');
+    label.className = 'garage-section-label';
+    label.textContent = 'รถที่สูญหาย (ออกเกม/หลุดเกมโดยไม่ได้เก็บเข้าการาจ)';
+    body.appendChild(label);
+
+    const lostList = (typeof Garage.getLostVehicles === 'function') ? Garage.getLostVehicles() : [];
+    _refreshLostBadge();
+
+    if (lostList.length === 0) {
+      const hint = document.createElement('div');
+      hint.className = 'garage-empty-hint';
+      hint.textContent = 'ไม่มีรถที่สูญหายตอนนี้ 🎉';
+      body.appendChild(hint);
+      return;
+    }
+
+    const list = document.createElement('div');
+    list.className = 'garage-row-list';
+    body.appendChild(list);
+
+    lostList.slice().reverse().forEach((v) => {
+      const item = DEALERSHIP_CATALOG[v.type];
+      const row = document.createElement('div');
+      row.className = 'garage-row';
+
+      const icon = document.createElement('div');
+      icon.className = 'garage-row-icon';
+      if (item && item.image) {
+        const img = document.createElement('img');
+        img.src = item.image;
+        img.alt = item.name;
+        img.onerror = () => { img.remove(); icon.textContent = item ? item.emoji : '🚗'; };
+        icon.appendChild(img);
+      } else {
+        icon.textContent = item ? item.emoji : '🚗';
+      }
+
+      const info = document.createElement('div');
+      info.className = 'garage-row-info';
+      const nameRow = document.createElement('div');
+      nameRow.className = 'garage-row-name';
+      nameRow.textContent = item ? item.name : v.type;
+      const plateSpan = document.createElement('span');
+      plateSpan.className = 'garage-row-plate';
+      plateSpan.textContent = v.plate;
+      nameRow.appendChild(plateSpan);
+      info.appendChild(nameRow);
+
+      const sub = document.createElement('div');
+      sub.className = 'garage-row-sub';
+      sub.textContent = '🚨 สูญหาย — ต้องกู้คืนก่อนถึงจะเบิกได้';
+      info.appendChild(sub);
+
+      const cost = document.createElement('div');
+      cost.className = 'garage-row-cost';
+      cost.textContent = `ค่ากู้คืน 💵 ${Garage.LOST_RECOVERY_COST.toLocaleString()}`;
+      info.appendChild(cost);
+
+      const btn = document.createElement('button');
+      btn.className = 'garage-row-btn recover';
+      btn.textContent = '🚨 กู้คืน';
+      btn.addEventListener('click', () => {
+        const preCheck = Garage.canRecover(v.plate);
+        if (!preCheck.ok) {
+          Notification.show(preCheck.reason, { icon: '❌', color: '#f44336' });
+          return;
+        }
+        _openRecoverConfirm(v.plate, item);
+      });
+
+      row.appendChild(icon);
+      row.appendChild(info);
+      row.appendChild(btn);
+      list.appendChild(row);
+    });
+  }
+
   // ── updateGarage — เรียกทุกเฟรมจาก game.js ──
   // วนตรวจทุกการาจใน GARAGE_LOCATIONS
   let _autoStoreCooldown = false;
@@ -762,6 +1108,7 @@ const Garage = {
 
     // ── ปุ่มเบิกรถ ──
     if (inRetrieveZone && !isInVehicle && !_isRetrieving) {
+      if (_currentRetrieveLocIndex === -1) _refreshLostBadge(); // เพิ่งเข้าโซน → รีเฟรช badge
       _currentRetrieveLocIndex = zone.locIndex;
       retrieveUI.btn.style.display = 'flex';
     } else {
