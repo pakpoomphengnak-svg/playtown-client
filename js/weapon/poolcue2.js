@@ -1,23 +1,26 @@
-// client/js/weapon/poolcue.js
+// client/js/weapon/poolcue2.js
 // ────────────────────────────────────────────────────────────
-// Weapon Definition: ไม้พลู (Pool Cue) 🎱
-// อาวุธระยะประชิด ตีเบากว่าปากฉลาม แต่มีโอกาสคริติคอลดาเมจ 999 (ตายเลย)
+// Weapon Definition: ไม้พลู +2 (Pool Cue +2) 🎱✨✨
+// อาวุธอัปเกรดขั้นสูงสุดจากไม้พลู (ต่อจาก +1) — ดาเมจ/โอกาสคริติคอลสูงขึ้นอีก
+// สีเปลี่ยนจากเขียวสด (+1) → ฟ้าสดใส (+2)
 // ต้องโหลดหลัง js/system/weapon.js
+//
+// NOTE: stat ด้านล่างตั้งแบบไล่ระดับจาก poolcue1 ไว้ก่อน (ผู้ใช้แจ้งว่าจะปรับเองทีหลัง)
 // ────────────────────────────────────────────────────────────
 
-WEAPON_DEFS.poolcue = {
-  id:          'poolcue',
-  name:        'ไม้พลู',
-  image:       'assets/weapons/poolcue.png',
+WEAPON_DEFS.poolcue2 = {
+  id:          'poolcue2',
+  name:        'ไม้พลู +2',
+  image:       'assets/weapons/poolcue2.png',
   emoji:       '🎱',
   description: '',
   maxStack:    1,
 
-  // ── Combat Stats ────────────────────────────────────────
-  damage:        10,
+  // ── Combat Stats (สูงกว่า poolcue1) ─────────────────────
+  damage:        14,
   range:         2.0,
   attackSpeed:   1.6,
-  critChance:    5,
+  critChance:    15,
   critDamage:    999,
 
   // ── Item flags ──────────────────────────────────────────
@@ -29,24 +32,23 @@ WEAPON_DEFS.poolcue = {
   holdRotation: { x: 1.25, y: 0, z: Math.PI / 2.0 },
 
   // ── สร้างโมเดล 3D จริง (THREE.Group) ───────────────────
-  // เลียนแบบไม้คิวบิลเลียด: ด้ามหนาสีเข้ม คาดขาว แล้วเรียวลงจนปลายแหลม
+  // เหมือนโครงไม้พลูเดิม แต่เปลี่ยนวัสดุเป็นโทนฟ้าสดใส
   // ความยาวรวม ~1.45 หน่วย วางตามแกน X (ปลายแหลมชี้ +X)
   // weaponHold.js จะ rotate/position ทั้งกลุ่มให้เข้ามืออีกที
   createModel() {
     const group = new THREE.Group();
 
-    const C_BUTT  = 0x3a3a3a; // ด้ามจับ (เทาเข้ม)
-    const C_WHITE = 0xf5f5f5; // แถบคาดขาว
-    const C_SHAFT = 0xe8e4da; // เพลาไม้ (ขาวอมเหลืองอ่อน คล้ายไม้เคลือบเงา)
-    const C_TIP   = 0xd8d4c8; // ปลายคิว
+    const C_BUTT  = 0x0a2433; // ด้ามจับ (ฟ้าเข้มเกือบดำ)
+    const C_WRAP  = 0x06141f; // แถบคาดเข้ม (ดำอมฟ้า)
+    const C_SHAFT = 0x29b6f6; // เพลาไม้ (ฟ้าสด)
+    const C_TIP   = 0x80deff; // ปลายคิว (ฟ้าสว่างกว่าเพลา)
 
     const matButt  = new THREE.MeshLambertMaterial({ color: C_BUTT });
-    const matWhite = new THREE.MeshLambertMaterial({ color: C_WHITE });
+    const matWrap  = new THREE.MeshLambertMaterial({ color: C_WRAP });
     const matShaft = new THREE.MeshLambertMaterial({ color: C_SHAFT });
     const matTip   = new THREE.MeshLambertMaterial({ color: C_TIP });
 
     // แต่ละท่อนเป็น CylinderGeometry วางนอนตามแกน X
-    // (cylinder ปกติยืนตามแกน Y จึงต้อง rotation.z = PI/2 ทีละชิ้น)
     function segment(rTop, rBottom, length, mat) {
       const geo = new THREE.CylinderGeometry(rTop, rBottom, length, 10);
       const mesh = new THREE.Mesh(geo, mat);
@@ -65,12 +67,12 @@ WEAPON_DEFS.poolcue = {
     group.add(butt);
     x += buttLen;
 
-    // 2) แถบคาดขาว
-    const whiteLen = 0.07;
-    const white = segment(buttR * 0.92, buttR * 0.80, whiteLen, matWhite);
-    white.position.x = x + whiteLen / 2;
-    group.add(white);
-    x += whiteLen;
+    // 2) แถบคาดเข้ม
+    const wrapLen = 0.07;
+    const wrap = segment(buttR * 0.92, buttR * 0.80, wrapLen, matWrap);
+    wrap.position.x = x + wrapLen / 2;
+    group.add(wrap);
+    x += wrapLen;
 
     // 3) เพลาไม้ ค่อยๆ เรียวยาว (ท่อนกลาง สั้นๆ)
     const shaftLen = 0.20;
@@ -86,7 +88,7 @@ WEAPON_DEFS.poolcue = {
     group.add(taper);
     x += taperLen;
 
-    // 5) ปลายคิว (บางสุด เกือบแหลม)
+    // 5) ปลายคิว (บางสุด เกือบแหลม สีฟ้าสว่างกว่า)
     const tipLen = 0.18;
     const tip = segment(buttR * 0.16, buttR * 0.05, tipLen, matTip);
     tip.position.x = x + tipLen / 2;
@@ -94,7 +96,6 @@ WEAPON_DEFS.poolcue = {
     x += tipLen;
 
     // จุดหมุน/จับของ group อยู่ที่ปลายด้าม (x=0) ซึ่งเป็นจุดที่มือกำพอดี
-    // เลื่อนทั้งกลุ่มถอยมาเล็กน้อยให้มือกำตรงด้ามจริงๆ (ไม่ใช่ปลายสุด)
     group.children.forEach(c => { c.position.x -= buttLen / 2; });
 
     return group;
@@ -103,7 +104,7 @@ WEAPON_DEFS.poolcue = {
   // ── เมื่อกดใช้จาก inventory/hotbar (equip อาวุธ) ────────
   use() {
     if (typeof WeaponSystem !== 'undefined') {
-      WeaponSystem.equip('poolcue');
+      WeaponSystem.equip('poolcue2');
     }
     return false; // false = ไม่ consume ไอเทมเมื่อ use
   },
@@ -114,8 +115,6 @@ WEAPON_DEFS.poolcue = {
     for (const target of targets) {
       if (typeof target.takeDamage === 'function') {
         // ── สุ่มคริติคอลแบบเลขเต็ม 1-100 (ไม่ใช้ทศนิยม) ──
-        // ทอยเลข 1-100 1 ครั้ง ถ้าได้เลขใน [1, critChance] ถือว่าติดคริ
-        // เช่น critChance = 15 → ได้ 1-15 ติด (15%), ได้ 16-100 ไม่ติด (85%)
         const roll = Math.floor(Math.random() * 100) + 1; // เลขเต็ม 1-100
         const isCrit = roll <= this.critChance;
         const dmg = isCrit ? this.critDamage : this.damage;
@@ -126,9 +125,9 @@ WEAPON_DEFS.poolcue = {
         // แจ้ง toast แยกข้อความตาม crit หรือไม่
         if (typeof Inventory !== 'undefined' && typeof Inventory._toast === 'function') {
           if (isCrit) {
-            Inventory._toast(`คริติคอล! ตีด้วยไม้พลู -${dmg} HP 💥`, { icon: '🎱', color: '#ffd700' });
+            Inventory._toast(`คริติคอล! ตีด้วยไม้พลู +2 -${dmg} HP 💥`, { icon: '🎱', color: '#29b6f6' });
           } else {
-            Inventory._toast(`ตีด้วยไม้พลู! -${dmg} HP`, { icon: '🎱', color: '#6d4c41' });
+            Inventory._toast(`ตีด้วยไม้พลู +2! -${dmg} HP`, { icon: '🎱', color: '#1565c0' });
           }
         }
       }
@@ -140,5 +139,5 @@ WEAPON_DEFS.poolcue = {
 
 // ── ลงทะเบียนเข้า ITEM_DEFS ด้วย เพื่อให้ inventory/hotbar รู้จัก ──
 if (typeof ITEM_DEFS !== 'undefined') {
-  ITEM_DEFS.poolcue = WEAPON_DEFS.poolcue;
+  ITEM_DEFS.poolcue2 = WEAPON_DEFS.poolcue2;
 }

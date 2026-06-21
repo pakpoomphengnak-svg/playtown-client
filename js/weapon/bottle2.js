@@ -1,24 +1,27 @@
-// client/js/weapon/bottle.js
+// client/js/weapon/bottle2.js
 // ────────────────────────────────────────────────────────────
-// Weapon Definition: ปากฉลาม 🍾
-// อาวุธระยะประชิด ตีแรงกว่าไม้พลู + มีโอกาสทำให้ศัตรูมึนงงชั่วคราว
+// Weapon Definition: ปากฉลาม +2 🍾✨✨
+// อาวุธอัปเกรดขั้นสูงสุดจากปากฉลาม (ต่อจาก +1) — ดาเมจ/ระยะ/โอกาสมึนงงสูงขึ้นอีก
+// สีเปลี่ยนจากเขียวเรืองแสง (+1) → ฟ้าเรืองแสง (+2)
 // ต้องโหลดหลัง js/system/weapon.js
+//
+// NOTE: stat ด้านล่างตั้งแบบไล่ระดับจาก bottle1 ไว้ก่อน (ผู้ใช้แจ้งว่าจะปรับเองทีหลัง)
 // ────────────────────────────────────────────────────────────
 
-WEAPON_DEFS.bottle = {
-  id:          'bottle',
-  name:        'ปากฉลาม',
-  image:       'assets/weapons/bottle.png',
+WEAPON_DEFS.bottle2 = {
+  id:          'bottle2',
+  name:        'ปากฉลาม +2',
+  image:       'assets/weapons/bottle2.png',
   emoji:       '🍾',
   description: '',
   maxStack:    1,
 
-  // ── Combat Stats ────────────────────────────────────────
-  damage:       15,      // ดาเมจต่อการตี 1 ครั้ง (สูงกว่าไม้พลู)
-  range:        1.5,     // ระยะตี (หน่วยเดียวกับ PLAYER_R)
-  attackSpeed:  1.2,     // cooldown วินาที (ต้องน้อยกว่าหรือเท่ากับ ATTACK_DURATION)
-  stunChance:   0,      // โอกาสทำให้มึนงง หน่วย % (1-100) → ทอยเลข 1-100 ถ้าได้ <= ค่านี้ คือติด
-  stunDuration: 1.5,     // มึนงงนานกี่วินาที
+  // ── Combat Stats (สูงกว่า bottle1) ──────────────────────
+  damage:       21,
+  range:        1.5,
+  attackSpeed:  1.2,
+  stunChance:   20,
+  stunDuration: 1.5,
 
   // ── Item flags ──────────────────────────────────────────
   isWeapon:  true,
@@ -29,24 +32,25 @@ WEAPON_DEFS.bottle = {
   holdRotation: { x: 1.25, y: 0, z: Math.PI / 2.0 },
 
   // ── สร้างโมเดล 3D จริง (THREE.Group) ───────────────────
-  // เลียนแบบขวดแก้วทุบหัวขวด: คอเรียวมีฝา + ลำตัวเหลี่ยมบานออกแล้วสอบเข้าหาก้น
+  // เหมือนโครงปากฉลามเดิม แต่เปลี่ยนวัสดุเป็นโทนฟ้าเรืองแสง
   // ความยาวรวม ~0.42 หน่วย วางตามแกน X (คอ/ฝาชี้ -X เป็นปลายที่ใช้ตี)
   // weaponHold.js จะ rotate/position ทั้งกลุ่มให้เข้ามืออีกที
   createModel() {
     const group = new THREE.Group();
 
-    const C_CAP    = 0x2a2a2a; // ฝาขวด (ดำ)
-    const C_NECK   = 0xb8c4c0; // คอขวด (ใสอมเขียวเทา)
-    const C_BODY   = 0xd4ddd8; // ลำตัวขวด (แก้วใสอมเขียว สว่างกว่าคอ)
-    const C_BASE   = 0xa8b4af; // ก้นขวด (เข้มกว่านิด ให้มีมิติ)
+    const C_CAP    = 0x0d2533; // ฝาขวด (ฟ้าเข้มเกือบดำ)
+    const C_NECK   = 0x1565c0; // คอขวด (ฟ้าเข้ม)
+    const C_BODY   = 0x29b6f6; // ลำตัวขวด (ฟ้าสด)
+    const C_BASE   = 0x1565c0; // ก้นขวด (ฟ้าเข้มกว่านิด ให้มีมิติ)
+    const C_CORE   = 0xaef0ff; // แกนเรืองแสงตรงกลาง (ฟ้าขาวสว่างจัด)
 
     const matCap  = new THREE.MeshLambertMaterial({ color: C_CAP });
-    const matNeck = new THREE.MeshLambertMaterial({ color: C_NECK, transparent: true, opacity: 0.92 });
-    const matBody = new THREE.MeshLambertMaterial({ color: C_BODY, transparent: true, opacity: 0.85 });
-    const matBase = new THREE.MeshLambertMaterial({ color: C_BASE, transparent: true, opacity: 0.9 });
+    const matNeck = new THREE.MeshLambertMaterial({ color: C_NECK, transparent: true, opacity: 0.95 });
+    const matBody = new THREE.MeshLambertMaterial({ color: C_BODY, transparent: true, opacity: 0.92 });
+    const matBase = new THREE.MeshLambertMaterial({ color: C_BASE, transparent: true, opacity: 0.95 });
+    const matCore = new THREE.MeshBasicMaterial({ color: C_CORE }); // เรืองแสง ไม่รับแสงจากฉาก (ดูสว่างเสมอ)
 
     // ท่อนทรงกระบอก/เหลี่ยม วางนอนตามแกน X
-    // radialSegments น้อย (6) เพื่อให้ลำตัวดูเหลี่ยมคล้ายขวดแก้วทุบในรูป
     function segment(rTop, rBottom, length, mat, radial = 6) {
       const geo = new THREE.CylinderGeometry(rTop, rBottom, length, radial);
       const mesh = new THREE.Mesh(geo, mat);
@@ -86,6 +90,12 @@ WEAPON_DEFS.bottle = {
     group.add(body);
     x += bodyLen;
 
+    // 4b) แกนเรืองแสงตรงกลางลำตัว (ทรงกระบอกบางๆ ฝังอยู่ในลำตัว ให้เห็นเป็นแกนสว่าง)
+    const coreLen = bodyLen * 0.7;
+    const core = segment(0.022, 0.020, coreLen, matCore, 8);
+    core.position.x = x - bodyLen / 2;
+    group.add(core);
+
     // 5) ก้นขวด (สอบเข้านิดหน่อย ปิดท้าย)
     const baseLen = 0.045;
     const base = segment(0.072, 0.060, baseLen, matBase, 6);
@@ -94,8 +104,7 @@ WEAPON_DEFS.bottle = {
     x += baseLen;
 
     // จุดหมุน/จับของ group: เลื่อนให้มือกำตรงช่วงลำตัว/ก้นขวด (ปลายจับ)
-    // ส่วนคอ+ฝา (ปลายตี) จะยื่นออกไปทาง -X จากมือ
-    const gripPoint = x - (bodyLen / 2 + baseLen); // ประมาณกึ่งกลางลำตัวค่อนไปทางก้น
+    const gripPoint = x - (bodyLen / 2 + baseLen);
     group.children.forEach(c => { c.position.x -= gripPoint; });
 
     return group;
@@ -104,7 +113,7 @@ WEAPON_DEFS.bottle = {
   // ── เมื่อกดใช้จาก inventory/hotbar (equip อาวุธ) ────────
   use() {
     if (typeof WeaponSystem !== 'undefined') {
-      WeaponSystem.equip('bottle');
+      WeaponSystem.equip('bottle2');
     }
     return false; // false = ไม่ consume ไอเทมเมื่อ use (ต้อง unequip ถึงจะถอดออก)
   },
@@ -118,8 +127,6 @@ WEAPON_DEFS.bottle = {
         hit = true;
 
         // ── สุ่ม stun แบบเลขเต็ม 1-100 (ไม่ใช้ทศนิยม) ──
-        // ทอยเลข 1-100 1 ครั้ง ถ้าได้เลขใน [1, stunChance] ถือว่าติด stun
-        // เช่น stunChance = 30 → ได้ 1-30 ติด (30%), ได้ 31-100 ไม่ติด (70%)
         const roll = Math.floor(Math.random() * 100) + 1; // เลขเต็ม 1-100
         if (roll <= this.stunChance && typeof target.applyStun === 'function') {
           target.applyStun(this.stunDuration);
@@ -129,7 +136,7 @@ WEAPON_DEFS.bottle = {
 
     // แจ้ง toast ถ้าตีโดน
     if (hit && typeof Inventory !== 'undefined' && typeof Inventory._toast === 'function') {
-      Inventory._toast(`ฟาดด้วยปากฉลาม! -${this.damage} HP`, { icon: '🍾', color: '#e53935' });
+      Inventory._toast(`ฟาดด้วยปากฉลาม +2! -${this.damage} HP`, { icon: '🍾', color: '#29b6f6' });
     }
 
     return hit;
@@ -138,5 +145,5 @@ WEAPON_DEFS.bottle = {
 
 // ── ลงทะเบียนเข้า ITEM_DEFS ด้วย เพื่อให้ inventory/hotbar รู้จัก ──
 if (typeof ITEM_DEFS !== 'undefined') {
-  ITEM_DEFS.bottle = WEAPON_DEFS.bottle;
+  ITEM_DEFS.bottle2 = WEAPON_DEFS.bottle2;
 }

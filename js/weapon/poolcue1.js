@@ -11,15 +11,15 @@ WEAPON_DEFS.poolcue1 = {
   name:        'ไม้พลู +1',
   image:       'assets/weapons/poolcue1.png',
   emoji:       '🎱',
-  description: 'อัปเกรดจากไม้พลู ดาเมจและโอกาสคริติคอลสูงขึ้น',
+  description: '',
   maxStack:    1,
 
   // ── Combat Stats (สูงกว่า poolcue ฐาน) ──────────────────
-  damage:        16,      // เดิม 10 → 16
-  range:         2.1,     // เดิม 2.0 → 2.1
-  attackSpeed:   1.1,     // เดิม 1.2 → 1.1 (ตีถี่ขึ้นเล็กน้อย)
-  critChance:    25,      // เดิม 15 → 25
-  critDamage:    999,     // ดาเมจคริติคอล (ตายเลย เหมือนเดิม)
+  damage:        12,
+  range:         2.0,
+  attackSpeed:   1.6,
+  critChance:    10,
+  critDamage:    999,
 
   // ── Item flags ──────────────────────────────────────────
   isWeapon:  true,

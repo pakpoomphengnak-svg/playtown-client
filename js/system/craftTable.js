@@ -13,7 +13,14 @@
 // {
 //   id:          'safe_key',          // itemId ที่จะได้รับเมื่อคราฟสำเร็จ (ต้องมีใน ITEM_DEFS)
 //   resultQty:   1,                   // จำนวนที่ได้ต่อครั้ง
-//   materials:   [{ id: 'apple_packaged', qty: 5 }, { id: 'spray', qty: 10 }],
+//   materials:   [
+//     { id: 'apple_packaged', qty: 5 },
+//     { id: 'spray', qty: 10 },
+//     // keepOnFail: true → วัตถุดิบชิ้นนี้จะถูกหักก็ต่อเมื่อคราฟ "สำเร็จ" เท่านั้น
+//     //   (เช็คว่ามีพอตั้งแต่ต้น แต่ยังไม่หักจนกว่าจะรู้ผล — ถ้าล้มเหลวจะไม่เสียวัตถุดิบนี้ไป)
+//     //   ใช้กับของที่ไม่อยากให้หายไปฟรีๆ ตอนคราฟพลาด เช่น อาวุธฐานที่ใช้ตีบวกอัปเกรด
+//     { id: 'bottle', qty: 1, keepOnFail: true },
+//   ],
 //   successRate: 80,                  // โอกาสสำเร็จ เป็น % จริง (0-100)
 //   craftTime:   3,                   // เวลาที่ใช้คราฟ 1 ครั้ง (วินาที) — ไม่ใส่ = ใช้ค่า default ด้านล่าง
 // }
@@ -52,30 +59,44 @@ const CRAFT_RECIPES = {
       id:          'bottle',
       resultQty:   1,
       materials:   [
-        { id: 'ironingot',          qty: 30 },
-        { id: 'goldingot',          qty: 10 },
-        { id: 'diamond', qty: 3 },
-        { id: 'cement', qty: 5 },
-        { id: 'wire', qty: 5 },
-        { id: 'cash',           qty: 0 },
-        { id: 'dirty_cash',     qty: 100 },
+        { id: 'ironingot',
+        qty: 10 },
+        { id: 'goldingot',
+        qty: 5 },
+        { id: 'diamond',
+        qty: 1 },
+        { id: 'cement',
+        qty: 3 },
+        { id: 'wire',
+        qty: 3 },
+        { id: 'cash',
+        qty: 0 },
+        { id: 'dirty_cash',
+        qty: 100 },
       ],
-      successRate: 50,
+      successRate: 30,
       craftTime:   5,
     },
     {
       id:          'poolcue',
       resultQty:   1,
       materials:   [
-        { id: 'woodplank',          qty: 30 },
-        { id: 'goldingot',          qty: 10 },
-        { id: 'diamond', qty: 3 },
-        { id: 'cement', qty: 5 },
-        { id: 'wire', qty: 5 },
-        { id: 'cash',           qty: 0 },
-        { id: 'dirty_cash',     qty: 100 },
+        { id: 'woodplank',
+        qty: 10 },
+        { id: 'goldingot',
+        qty: 5 },
+        { id: 'diamond',
+        qty: 1 },
+        { id: 'cement',
+        qty: 3 },
+        { id: 'wire',
+        qty: 3 },
+        { id: 'cash',
+        qty: 0 },
+        { id: 'dirty_cash',
+        qty: 100 },
       ],
-      successRate: 50,
+      successRate: 30,
       craftTime:   5,
     },
   ],
@@ -84,29 +105,101 @@ const CRAFT_RECIPES = {
       id:          'bottle1',
       resultQty:   1,
       materials:   [
-        { id: 'bottle',    qty: 1 },
-        { id: 'ironingot', qty: 20 },
-        { id: 'goldingot', qty: 15 },
-        { id: 'diamond',   qty: 5 },
-        { id: 'cash',      qty: 0 },
-        { id: 'dirty_cash', qty: 200 },
+        { id: 'bottle',
+        qty: 1,
+        keepOnFail: true },
+        { id: 'ironingot',
+        qty: 10 },
+        { id: 'goldingot',
+        qty: 5 },
+        { id: 'diamond',
+        qty: 1 },
+        { id: 'cement',
+        qty: 3 },
+        { id: 'wire',
+        qty: 3 },
+        { id: 'cash',
+        qty: 0 },
+        { id: 'dirty_cash',
+        qty: 100 },
       ],
-      successRate: 40,
-      craftTime:   8,
+      successRate: 25,
+      craftTime:   5,
     },
     {
       id:          'poolcue1',
       resultQty:   1,
       materials:   [
-        { id: 'poolcue',   qty: 1 },
-        { id: 'woodplank', qty: 20 },
-        { id: 'goldingot', qty: 15 },
-        { id: 'diamond',   qty: 5 },
-        { id: 'cash',      qty: 0 },
-        { id: 'dirty_cash', qty: 200 },
+        { id: 'poolcue',
+        qty: 1,
+        keepOnFail: true },
+        { id: 'woodplank',
+        qty: 10 },
+        { id: 'goldingot',
+        qty: 5 },
+        { id: 'diamond',
+        qty: 1 },
+        { id: 'cement',
+        qty: 3 },
+        { id: 'wire',
+        qty: 3 },
+        { id: 'cash',
+        qty: 0 },
+        { id: 'dirty_cash',
+        qty: 100 },
       ],
-      successRate: 40,
-      craftTime:   8,
+      successRate: 25,
+      craftTime:   5,
+    },
+    {
+      id:          'bottle2',
+      resultQty:   1,
+      materials:   [
+        { id: 'bottle1',
+        qty: 1,
+        keepOnFail: true },
+        { id: 'ironingot',
+        qty: 20 },
+        { id: 'goldingot',
+        qty: 10 },
+        { id: 'diamond',
+        qty: 3 },
+        { id: 'cement',
+        qty: 5 },
+        { id: 'wire',
+        qty: 5 },
+        { id: 'cash',
+        qty: 0 },
+        { id: 'dirty_cash',
+        qty: 300 },
+      ],
+      successRate: 20,
+      craftTime:   5,
+    },
+    {
+      id:          'poolcue2',
+      resultQty:   1,
+      materials:   [
+        { id: 'poolcue1',
+        qty: 1,
+        keepOnFail: true },
+        { id: 'woodplank',
+        qty: 20 },
+        { id: 'goldingot',
+        qty: 10 },
+        { id: 'diamond',
+        qty: 3 },
+        { id: 'cement',
+        qty: 5 },
+        { id: 'wire',
+        qty: 5 },
+        { id: 'cash',
+        qty: 0 },
+        { id: 'dirty_cash',
+        qty: 300 },
+      ],
+      successRate: 20,
+      craftTime:   5,
     },
   ],
 };
@@ -836,6 +929,10 @@ const CRAFT_CATEGORIES = ['ทั่วไป', 'ซัพพลาย', 'อา
       const nm = document.createElement('span');
       nm.className = 'craft-mat-name';
       nm.textContent = matDef.name || mat.id;
+      if (mat.keepOnFail) {
+        nm.textContent += ' (ไม่หักถ้าพลาด)';
+        nm.style.color = '#80cbc4';
+      }
 
       const cnt = document.createElement('span');
       cnt.className = 'craft-mat-count ' + (ok ? 'craft-mat-ok' : 'craft-mat-bad');
@@ -1027,7 +1124,11 @@ const CRAFT_CATEGORIES = ['ทั่วไป', 'ซัพพลาย', 'อา
     }
 
     // หักวัตถุดิบของชิ้นนี้ทันทีตอนเริ่มคราฟชิ้นนี้ (จากแหล่งที่ล็อกไว้ตอนเริ่มเซสชันนี้)
+    // ── ยกเว้นวัตถุดิบที่ตั้ง keepOnFail: true (เช่น อาวุธฐานตอนตีบวก) ──
+    //    วัตถุดิบเหล่านี้แค่ "เช็คว่ามีพอ" ไปแล้วข้างบน แต่ยังไม่หักจริง
+    //    จะหักก็ต่อเมื่อรู้ผลว่าคราฟสำเร็จเท่านั้น (ดูใน finishUnit) — ถ้าล้มเหลวจะไม่เสียวัตถุดิบนี้ไป
     recipe.materials.forEach(mat => {
+      if (mat.keepOnFail) return;
       sourceRemove(mat.id, mat.qty, session.source);
     });
     session.currentMaterialsDeducted = true;
@@ -1082,6 +1183,13 @@ const CRAFT_CATEGORIES = ['ทั่วไป', 'ซัพพลาย', 'อา
 
     if (success) {
       session.successCount++;
+
+      // ── หักวัตถุดิบที่ keepOnFail: true ตอนนี้ (รู้ผลแล้วว่าสำเร็จ) ──
+      // ตอนเริ่มชิ้นนี้ (craftNextUnit) ข้ามวัตถุดิบกลุ่มนี้ไว้ก่อน เพิ่งมาหักจริงตอนนี้
+      recipe.materials.forEach(mat => {
+        if (mat.keepOnFail) sourceRemove(mat.id, mat.qty, session.source);
+      });
+
       Inventory.addItem(recipe.id, recipe.resultQty, true);
       if (typeof Notification !== 'undefined' && typeof Notification.showItemCard === 'function') {
         Notification.showItemCard({
@@ -1093,6 +1201,7 @@ const CRAFT_CATEGORIES = ['ทั่วไป', 'ซัพพลาย', 'อา
         });
       }
     } else {
+      // ── คราฟล้มเหลว: วัตถุดิบ keepOnFail (เช่น อาวุธฐาน) ไม่เคยถูกหักไปเลย ไม่ต้องคืนอะไร ──
       if (typeof Notification !== 'undefined')
         Notification.showItemCard({ type: 'lose', emoji: '💥', itemName: 'คราฟล้มเหลว', amount: 1 });
     }
@@ -1149,6 +1258,8 @@ const CRAFT_CATEGORIES = ['ทั่วไป', 'ซัพพลาย', 'อา
 
     if (session.currentMaterialsDeducted) {
       session.recipe.materials.forEach(mat => {
+        // วัตถุดิบ keepOnFail ไม่เคยถูกหักไปจริงตั้งแต่ต้น (รอหักตอนรู้ผลสำเร็จเท่านั้น) → ไม่ต้องคืน
+        if (mat.keepOnFail) return;
         sourceRefund(mat.id, mat.qty, session.source); // qty = 0 → ข้ามอัตโนมัติ
       });
       session.currentMaterialsDeducted = false;

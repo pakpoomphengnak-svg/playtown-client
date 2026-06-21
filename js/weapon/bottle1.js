@@ -11,15 +11,15 @@ WEAPON_DEFS.bottle1 = {
   name:        'ปากฉลาม +1',
   image:       'assets/weapons/bottle1.png',
   emoji:       '🍾',
-  description: 'อัปเกรดจากปากฉลาม ดาเมจและโอกาสมึนงงสูงขึ้น',
+  description: '',
   maxStack:    1,
 
   // ── Combat Stats (สูงกว่า bottle ฐาน) ───────────────────
-  damage:       30,      // เดิม 20 → 30
-  range:        1.6,     // เดิม 1.5 → 1.6
-  attackSpeed:  0.9,     // เดิม 1.0 → 0.9 (ตีถี่ขึ้นเล็กน้อย)
-  stunChance:   45,      // เดิม 30 → 45
-  stunDuration: 2.0,     // เดิม 1.5 → 2.0
+  damage:       18,
+  range:        1.5,
+  attackSpeed:  1.2,
+  stunChance:   10,
+  stunDuration: 1.5,
 
   // ── Item flags ──────────────────────────────────────────
   isWeapon:  true,

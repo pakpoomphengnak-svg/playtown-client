@@ -52,6 +52,8 @@ const INVENTORY_SORT_ORDER = [
   'poolcue',
   'bottle1',
   'poolcue1',
+  'bottle2',
+  'poolcue2',
 
   // ── เพิ่มไอเทมอื่น ๆ ที่นี่ตามลำดับที่ต้องการ ──
 ];
