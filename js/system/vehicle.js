@@ -95,7 +95,19 @@ function makeVehicle(type, x, z, rotY = 0) {
 // ── Panel ปุ่มรถ: [ ขึ้น/ลง ] [ ล็อก/ปลดล็อก ] [ เปิดคลังรถ ] ──
 // แสดงเมื่อเข้าใกล้รถ (ระยะ ENTER_DIST) — ปุ่มล็อก/คลังโชว์เฉพาะรถที่เรามีกุญแจ (เป็นเจ้าของ) เท่านั้น
 // ปุ่มขึ้น/ลง: เดิม id="vehicle-btn" (คงไว้เพื่อความเข้ากันได้กับโค้ด/สไตล์เดิม)
-// ปุ่มล็อก/ปลดล็อก: id="vehicle-lock-btn"
+// ── sync สถานะล็อกจริงจาก server กลับเข้า vehicles[] ──
+// ใช้ตอน server ปฏิเสธคำสั่งล็อก/ปลดล็อกที่เราสั่งไป (เช่น มีคนอื่นขับรถคันนี้อยู่)
+// เพื่อ rollback optimistic update ที่ toggleVehicleLock() ทำไว้ก่อนหน้า ไม่งั้น UI ฝั่งเรา
+// จะค้างค่าผิด (เห็นว่าล็อกสำเร็จ ทั้งที่ server ไม่เคยล็อกจริง)
+function syncVehicleLockState(plate, locked) {
+  const v = vehicles.find(veh => veh.plate === plate);
+  if (!v) return;
+  v.locked = locked;
+  VehicleLock.setLocked(plate, locked); // sync ค่าที่เก็บถาวรไว้ในเครื่องให้ตรงกับ server ด้วย
+  updateVehicleLockUI();
+}
+
+// ── ปุ่มล็อก/ปลดล็อก: id="vehicle-lock-btn"
 // ปุ่มเปิดคลังรถ (ท้ายรถ): id="vstorage-open-btn" — รวมมาจาก vehicleStorage.js ให้อยู่ panel เดียวกัน
 function makeVehiclePanel() {
   const panel = document.createElement('div');

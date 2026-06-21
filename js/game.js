@@ -254,6 +254,15 @@ if (typeof SocketClient !== 'undefined') {
 
   SocketClient.on('onVehicleLockChanged', (data) => {
     if (typeof RemoteVehicles !== 'undefined') RemoteVehicles.setLocked(data.plate, data.locked);
+    // server ปฏิเสธคำสั่งล็อก/ปลดล็อกที่เราเพิ่งสั่งไป (เช่น มีคนอื่นขับรถคันนี้อยู่)
+    // ต้อง sync state จริงกลับ มิฉะนั้น UI ฝั่งเราจะค้างค่าจาก optimistic update ที่ผิด
+    // (root cause ของบั๊ก: A ล็อกรถที่ B กำลังขับ ดูเหมือนสำเร็จฝั่ง A แต่ server ไม่เคยล็อกจริง)
+    if (data.rejected && typeof syncVehicleLockState === 'function') {
+      syncVehicleLockState(data.plate, data.locked);
+    }
+    if (data.rejected && typeof Notification !== 'undefined') {
+      Notification.show('ล็อกรถไม่ได้ตอนนี้ มีคนกำลังขับอยู่', { icon: '⚠️', color: '#f44336' });
+    }
   });
 
   SocketClient.on('onVehicleDriverChanged', (data) => {
