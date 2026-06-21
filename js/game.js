@@ -136,6 +136,9 @@ function animate() {
   if (typeof updateAppleProgress === 'function') updateAppleProgress(dt, elapsedTime);
   if (typeof updateGrapePickups === 'function') updateGrapePickups(dt, elapsedTime);
   if (typeof updateGrapeProgress === 'function') updateGrapeProgress(dt, elapsedTime);
+  if (typeof updateWeedPickups === 'function') updateWeedPickups(dt, elapsedTime);
+  if (typeof updateWeedProgress === 'function') updateWeedProgress(dt, elapsedTime);
+  if (typeof updateDirtyWork === 'function') updateDirtyWork(dt, elapsedTime);
   if (typeof updateLogPickups === 'function') updateLogPickups(dt, elapsedTime);
   if (typeof updateLogProgress === 'function') updateLogProgress(dt, elapsedTime);
   if (typeof updateRockPickups === 'function') updateRockPickups(dt, elapsedTime);
