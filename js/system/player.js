@@ -292,7 +292,7 @@ const Player = {
   save() {
     DataService.savePlayer({
       name:    this.name,
-      hp:      this.hp,
+      hp:      Math.max(1, this.hp), // ไม่บันทึก HP=0 กันโหลดเกมแล้วตายทันที
       food:    this.food,
       water:   this.water,
       hygiene: this.hygiene,

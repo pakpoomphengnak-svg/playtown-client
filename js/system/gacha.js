@@ -616,16 +616,24 @@ const Gacha = {
   // ── มอบรางวัลจริงให้ผู้เล่น (batch) ──────────────────
   function grantRewards(rewards) {
     if (!rewards.length || typeof Inventory === 'undefined') return;
-    for (const reward of rewards) {
-      const def = ITEM_DEFS[reward.itemId];
-      if (!def) { console.warn(`[Gacha] ไม่รู้จักไอเทมรางวัล: ${reward.itemId}`); continue; }
-      const slot = Inventory._slots.find(s => s && s.id === reward.itemId && !s.meta);
-      if (slot) { slot.count += reward.amount; }
-      else       { Inventory._slots.push({ id: reward.itemId, count: reward.amount }); }
+    try {
+      for (const reward of rewards) {
+        const def = ITEM_DEFS[reward.itemId];
+        if (!def) { console.warn(`[Gacha] ไม่รู้จักไอเทมรางวัล: ${reward.itemId}`); continue; }
+        const slot = Inventory._slots.find(s => s && s.id === reward.itemId && !s.meta);
+        if (slot) { slot.count += reward.amount; }
+        else       { Inventory._slots.push({ id: reward.itemId, count: reward.amount }); }
+      }
+      Inventory._save();
+      Inventory._renderUI();
+      if (typeof Hotbar !== 'undefined') Hotbar._render();
+    } catch (err) {
+      // save ล้มเหลว (เช่น localStorage เต็ม) — ไม่ให้ของหายเงียบๆ แจ้งผู้เล่นแทน
+      console.error('[Gacha] grantRewards error:', err);
+      if (typeof Notification !== 'undefined') {
+        Notification.show('เกิดข้อผิดพลาดในการบันทึกของรางวัล กรุณาอย่าปิดเกม', { icon: '⚠️', color: '#f44336', duration: 8000 });
+      }
     }
-    Inventory._save();
-    Inventory._renderUI();
-    if (typeof Hotbar !== 'undefined') Hotbar._render();
   }
 
   // ════════════════════════════════════════

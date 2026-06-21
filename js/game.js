@@ -184,7 +184,7 @@ function animate() {
         Player.z,
         Player.rotY,
         !!ridingVehicleForPos,
-        ridingVehicleForPos ? ridingVehicleForPos.mesh.uuid : null,
+        ridingVehicleForPos ? ridingVehicleForPos.plate : null,
         actualSprinting,
         _attackToSend,
         equippedWeapon ? equippedWeapon.id : null

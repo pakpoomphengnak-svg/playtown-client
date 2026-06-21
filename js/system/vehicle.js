@@ -360,8 +360,8 @@ function makeSpeedometer() {
   el.appendChild(fuelWrap);
   document.body.appendChild(el);
 
-  // self-update loop
-  setInterval(() => {
+  // self-update loop (เก็บ id ไว้กันกรณี reinit)
+  const _hudUpdateTimer = setInterval(() => {
     const driven = vehicles.find(v => v.localDriven);
     const riding = driven || localPassengerOf; // รถที่เรา "อยู่ใน" ไม่ว่าจะขับเองหรือนั่งเป็นผู้โดยสาร
 
@@ -769,7 +769,7 @@ function refuelVehicle(amount) {
 
 // ── auto-save fuel ลง garage state ทุก 5 วินาที ──────
 // ป้องกันข้อมูลหาย กรณีปิดเกมกะทันหัน (ก่อนที่ garage.storeVehicle จะถูกเรียก)
-setInterval(() => {
+const _fuelSaveTimer = setInterval(() => {
   const driven = vehicles.find(v => v.localDriven && v.plate);
   if (!driven) return;
   if (typeof Garage === 'undefined') return;

@@ -1,6 +1,8 @@
 // ─────────────────────────────────────────────
-// WORLD: ROADS  (v8 — Highway + Soi, single material)
-// material เดียวกันทุกเส้น ต่างแค่ความกว้าง
+// WORLD: ROADS  (v9 — Full Ground Coverage)
+// ground = 800x800 → -400..+400
+// ถนนวิ่ง -380..+380 (เว้นขอบชายหาด 20 unit)
+// ความกว้าง: Highway=16, ถนนใหญ่=12, ซอย=8
 // ─────────────────────────────────────────────
 
 const ROAD_COLOR = 0x2e2e2e;
@@ -26,7 +28,6 @@ function makeRoad(direction, center, from, to, width) {
   const length = to - from;
   const mid    = (from + to) / 2;
 
-  // บันทึกพารามิเตอร์จริงไว้ให้ minimap.js อ่าน (ตำแหน่งจะตรงเสมอแม้แก้ที่นี่)
   window.ROAD_SEGMENTS.push([direction, center, from, to, width]);
 
   const W = direction === 'X' ? length : width;
@@ -65,7 +66,6 @@ function makeRoad(direction, center, from, to, width) {
 function makeIntersection(cx, cz, width) {
   width = width || 8;
 
-  // บันทึกพารามิเตอร์จริงไว้ให้ minimap.js อ่าน
   window.ROAD_INTERSECTIONS.push([cx, cz, width]);
 
   const inter = new THREE.Mesh(new THREE.BoxGeometry(width, ROAD_H, width), roadMat);
@@ -76,81 +76,81 @@ function makeIntersection(cx, cz, width) {
 }
 
 // ════════════════════════════════════════════
-//  LAYOUT  — Highway + ถนนใหญ่ + ซอย
-//  ความกว้าง: Highway=16, ถนนใหญ่=12, ซอย=8
+//  LAYOUT — Full Ground Coverage
+//  Ground: 800x800  (-400 ถึง +400)
+//  ถนนครอบคลุม: -380 ถึง +380
+//
+//  แนวตั้ง (N-S, Z)  : x = -380,-300,-200,-150,-90,-30,0,20,56,130,200,300,380
+//  แนวนอน (E-W, X)  : z = -380,-300,-200,-110,-30,0,100,200,300,380
+//
+//  ความกว้าง:
+//    Highway (HW=16) : z=-30 (แนวนอนหลัก)
+//    ถนนใหญ่ (MW=12): z=-380,-300,-200,-110,100,200,300,380
+//                      x=-90,20,56,-90 (แนวตั้งหลัก)
+//    ซอย (SW=8)      : ที่เหลือทั้งหมด
 // ════════════════════════════════════════════
 
 const HW = 16;  // Highway
 const MW = 12;  // ถนนใหญ่
 const SW = 8;   // ซอย
 
-// ── HIGHWAY แนว X ที่ z=-30 ──
-makeRoad('X', -30, -200,  -90, HW);
-makeRoad('X', -30,  -90,   20, HW);
-makeRoad('X', -30,   20,   56, HW);
-makeRoad('X', -30,   56,  130, HW);
-makeRoad('X', -30,  130,  200, HW);
-makeIntersection( -90, -30, HW);
-makeIntersection(  20, -30, HW);
-makeIntersection(  56, -30, HW);
-makeIntersection( 130, -30, HW);
+const EDGE = 380;  // ขอบถนนสุด (เว้นชายหาด 20 unit)
 
-// ── ถนนใหญ่ A : N-S ที่ x=-90 (Rebel) ──
-makeRoad('Z', -90, -200, -110, MW);
-makeIntersection(-90, -110, MW);
-makeRoad('Z', -90, -110,  -30, MW);
-makeRoad('Z', -90,  -30,  100, MW);
-makeIntersection(-90, 100, MW);
-makeRoad('Z', -90,  100,  200, MW);
+// ── แนวตั้ง (N-S) ทุกเส้น ──
+// จุดตัดแนวนอน z ที่จะ makeIntersection: -380,-300,-200,-110,-30,0,100,200,300,380
+const Z_CROSSES = [-380, -300, -200, -110, -30, 0, 100, 200, 300, 380];
 
-// ── ถนนใหญ่ B : N-S ที่ x=20 (Park) ──
-makeRoad('Z', 20, -200, -110, MW);
-makeIntersection(20, -110, MW);
-makeRoad('Z', 20, -110,  -40, MW);
-makeIntersection(20, -40, MW);      // จุด Park
-makeRoad('Z', 20,  -40,  -30, MW);
-makeRoad('Z', 20,  -30,  100, MW);
-makeIntersection(20, 100, MW);
-makeRoad('Z', 20,  100,  200, MW);
+// เส้นแนวตั้งแต่ละเส้น: [x, width]
+const NS_ROADS = [
+  [-380, SW],
+  [-300, SW],
+  [-200, SW],
+  [-150, SW],
+  [ -90, MW],
+  [ -30, SW],
+  [   0, SW],
+  [  20, MW],
+  [  56, MW],
+  [ 130, SW],
+  [ 200, SW],
+  [ 300, SW],
+  [ 380, SW],
+];
 
-// ── ถนนใหญ่ C : N-S ที่ x=56 (Showroom) ──
-makeRoad('Z', 56, -200, -110, MW);
-makeIntersection(56, -110, MW);
-makeRoad('Z', 56, -110,  -14, MW);
-makeIntersection(56, -14, MW);      // จุด Showroom
-makeRoad('Z', 56,  -14,  -30, MW);
-makeRoad('Z', 56,  -30,  100, MW);
-makeIntersection(56, 100, MW);
-makeRoad('Z', 56,  100,  200, MW);
+for (const [rx, rw] of NS_ROADS) {
+  let prev = -EDGE;
+  for (const cz of Z_CROSSES) {
+    makeRoad('Z', rx, prev, cz, rw);
+    makeIntersection(rx, cz, rw);
+    prev = cz;
+  }
+  makeRoad('Z', rx, prev, EDGE, rw);
+}
 
-// ── ถนนใหญ่ D : E-W ที่ z=-110 (เหนือ) ──
-makeRoad('X', -110, -200,  -90, MW);
-makeRoad('X', -110,  -90,   20, MW);
-makeRoad('X', -110,   20,   56, MW);
-makeRoad('X', -110,   56,  130, MW);
-makeRoad('X', -110,  130,  200, MW);
-makeIntersection(130, -110, MW);
+// ── แนวนอน (E-W) ทุกเส้น ──
+// จุดตัดแนวตั้ง x ที่จะ makeIntersection: ทุก x ใน NS_ROADS
+const X_CROSSES = NS_ROADS.map(r => r[0]);
 
-// ── ถนนใหญ่ E : E-W ที่ z=100 (ใต้) ──
-makeRoad('X', 100, -200,  -90, MW);
-makeRoad('X', 100,  -90,   20, MW);
-makeRoad('X', 100,   20,   56, MW);
-makeRoad('X', 100,   56,  130, MW);
-makeRoad('X', 100,  130,  200, MW);
-makeIntersection(130, 100, MW);
+// เส้นแนวนอนแต่ละเส้น: [z, width]
+const EW_ROADS = [
+  [-380, MW],
+  [-300, SW],
+  [-200, MW],
+  [-110, MW],
+  [ -30, HW],   // Highway
+  [   0, SW],
+  [ 100, MW],
+  [ 200, SW],
+  [ 300, SW],
+  [ 380, MW],
+];
 
-// ── ซอย F : N-S ที่ x=0 ──
-makeRoad('Z', 0, -200, -110, SW);
-makeIntersection(0, -110, SW);
-makeRoad('Z', 0, -110,  -30, SW);
-makeIntersection(0, -30, SW);
-makeRoad('Z', 0,  -30,  100, SW);
-makeIntersection(0, 100, SW);
-makeRoad('Z', 0,  100,  200, SW);
-
-// ── ซอย G : N-S ที่ x=130 ──
-makeRoad('Z', 130, -200, -110, SW);
-makeRoad('Z', 130, -110,  -30, SW);
-makeRoad('Z', 130,  -30,  100, SW);
-makeRoad('Z', 130,  100,  200, SW);
-
+for (const [rz, rw] of EW_ROADS) {
+  let prev = -EDGE;
+  for (const cx of X_CROSSES) {
+    makeRoad('X', rz, prev, cx, rw);
+    makeIntersection(cx, rz, rw);
+    prev = cx;
+  }
+  makeRoad('X', rz, prev, EDGE, rw);
+}
