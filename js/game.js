@@ -49,6 +49,11 @@ let elapsedTime = 0;
 let _posSendTimer = 0;
 const POS_SEND_INTERVAL = 0.1; // วินาที (10 ครั้ง/วิ)
 
+// ── Sound: จังหวะเสียงฝีเท้า (walk.ogg) — เดินช้ากว่าวิ่ง ──
+let _footstepTimer = 0;
+const FOOTSTEP_INTERVAL_WALK  = 0.42; // วินาทีต่อก้าวตอนเดิน
+const FOOTSTEP_INTERVAL_SPRINT = 0.27; // วินาทีต่อก้าวตอนวิ่ง
+
 // ── Multiplayer: บอกคนอื่นว่าเรากำลังโจมตี (ส่งครั้งเดียวตอนเริ่มท่า ไม่ส่งซ้ำทุกเฟรม) ──
 let _attackToSend = false;
 document.addEventListener('player-attack', () => {
@@ -117,9 +122,19 @@ function animate() {
     charGroup.rotation.y += diff * Math.min(1, 10 * dt);
 
     updateCharacterAnimation(true, actualSprinting, dt);
+
+    // ── Sound: ฝีเท้าเดิน/วิ่ง (walk.ogg) — เล่นเป็นจังหวะตามความเร็ว ไม่เล่นตอนอยู่ในรถ/เป็นผู้โดยสาร ──
+    if (typeof SoundSystem !== 'undefined') {
+      _footstepTimer -= dt;
+      if (_footstepTimer <= 0) {
+        _footstepTimer = actualSprinting ? FOOTSTEP_INTERVAL_SPRINT : FOOTSTEP_INTERVAL_WALK;
+        SoundSystem.playWorld('walk', { x: Player.x, z: Player.z });
+      }
+    }
   } else {
     charGroup.position.y = getGroundY(Player.x, Player.z) + charFootOffset;
     updateCharacterAnimation(false, actualSprinting, dt);
+    _footstepTimer = 0; // หยุดเดิน → ก้าวแรกตอนเริ่มเดินใหม่เล่นทันที ไม่ต้องรอจังหวะค้าง
   }
 
   if (typeof RemotePlayers !== 'undefined') RemotePlayers.update(dt);
@@ -290,6 +305,11 @@ if (typeof SocketClient !== 'undefined') {
     if (typeof Player !== 'undefined' && typeof Player.takeDamage === 'function') {
       Player.takeDamage(data.damage);
     }
+    // ── เสียง: เราโดนตี เล่นจากตำแหน่งตัวเอง (เต็มเสียงฝั่งเรา) + ส่งให้คนแถวนั้นได้ยินด้วย ──
+    // โดนคริติคอล/สตั้น (isFinal จาก server) → hit_final.ogg ไม่งั้น hit.ogg ปกติ
+    if (typeof SoundSystem !== 'undefined') {
+      SoundSystem.playWorld(data.isFinal ? 'hit_final' : 'hit', { x: Player.x, z: Player.z });
+    }
   });
 
   // ── PvP: มีคนตาย (ตัวเองหรือคนอื่น) — ถ้าเป็นคนอื่นให้ทำโมเดลโปร่งแสง ──
@@ -317,6 +337,13 @@ if (typeof SocketClient !== 'undefined') {
       || 'Player';
     const localGender = (typeof _localGender !== 'undefined') ? _localGender : 'male';
     SocketClient.joinGame(displayName, Player.x, Player.z, Player.rotY, localGender);
+  });
+
+  // ── Sound: world sound (heal/hit/hit_final/walk) ที่ผู้เล่นอื่นเล่น — เล่นตามระยะจากเราเอง ──
+  SocketClient.on('onSoundEvent', (data) => {
+    if (typeof SoundSystem !== 'undefined') {
+      SoundSystem.playWorldAt(data.soundId, data.x, data.z);
+    }
   });
 
   SocketClient.connect(MULTIPLAYER_SERVER_URL);

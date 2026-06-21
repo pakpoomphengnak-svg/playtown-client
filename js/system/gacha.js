@@ -524,6 +524,9 @@ const Gacha = {
       resultGrid.appendChild(item);
     }
 
+    // ── เสียง: popup ผลลัพธ์กาชาหมุนสำเร็จ ──
+    if (typeof SoundSystem !== 'undefined') SoundSystem.playUI('gacha_success');
+
     resultPopup.classList.add('show');
   }
 
@@ -596,6 +599,8 @@ const Gacha = {
   }
 
   // ── หมุน reel 1 ครั้ง (ไม่ roll ผล — ผลถูกคำนวณแล้ว) ──
+  // เล่นเสียง gacha_spin.ogg 1 ครั้งต่อ 1 grid (card) ที่เลื่อนผ่านเส้นกึ่งกลางจริงๆ
+  // โดย poll ตำแหน่ง transform จริงของแถบ reel ทุกเฟรม (รองรับ easing โค้งของ CSS transition ได้แม่นยำ)
   function animateReel(pool, reward) {
     return new Promise((resolve) => {
       buildReel(pool, reward);
@@ -608,6 +613,25 @@ const Gacha = {
         const minX          = -(reelTrack.scrollWidth - wrapWidth);
         reelTrack.style.transition = 'transform 3.4s cubic-bezier(0.12, 0.7, 0.1, 1)';
         reelTrack.style.transform  = `translateX(${Math.min(0, Math.max(targetX, minX))}px)`;
+
+        // ── ติดตามตำแหน่งจริงของแถบ reel ระหว่างเล่นแอนิเมชัน เพื่อยิงเสียงทุกครั้งที่ "ข้าม" 1 grid ──
+        let lastCardIndex = 0;
+        let rafId = null;
+        const _tick = () => {
+          const m = new DOMMatrixReadOnly(getComputedStyle(reelTrack).transform);
+          const currentX = m.m41; // translateX ปัจจุบัน (px) ตาม easing จริง ไม่ใช่ค่าคำนวณล่วงหน้า
+          const cardIndex = Math.floor(-currentX / cardW);
+          if (cardIndex > lastCardIndex) {
+            for (let i = lastCardIndex + 1; i <= cardIndex; i++) {
+              if (typeof SoundSystem !== 'undefined') SoundSystem.playUI('gacha_spin');
+            }
+            lastCardIndex = cardIndex;
+          }
+          rafId = requestAnimationFrame(_tick);
+        };
+        rafId = requestAnimationFrame(_tick);
+
+        setTimeout(() => { if (rafId !== null) cancelAnimationFrame(rafId); }, 3500);
       });
       setTimeout(resolve, 3500);
     });
@@ -690,11 +714,25 @@ const Gacha = {
 
       await new Promise((resolve) => {
         let done = 0;
+        let lastShown = 0;
         const iv = setInterval(() => {
           done++;
           const shown = Math.min(Math.round((done / ticks) * qty), qty);
           updateProgress(shown, qty);
           spinBtn.textContent = `🎰 กำลังสุ่ม... (${shown}/${qty})`;
+
+          // ── เสียง: เล่น 1 ครั้งต่อ 1 grid ที่ขยับจริง (shown เพิ่มขึ้นกี่ ก็ยิงเสียงเท่านั้นครั้ง) ──
+          // กัน qty ใหญ่มากจนเสียงถี่เกินฟังออก (เช่น 55555 ครั้ง) — จำกัดจำนวนเสียงสูงสุดต่อ batch นี้
+          if (shown > lastShown) {
+            const gridsThisTick = shown - lastShown;
+            const MAX_TICK_SOUNDS = 6; // ไม่ยิงเกินนี้ต่อ interval เดียว กันเสียงทับจนแตก
+            const soundsToPlay = Math.min(gridsThisTick, MAX_TICK_SOUNDS);
+            if (typeof SoundSystem !== 'undefined') {
+              for (let i = 0; i < soundsToPlay; i++) SoundSystem.playUI('gacha_spin');
+            }
+            lastShown = shown;
+          }
+
           if (done >= ticks) { clearInterval(iv); resolve(); }
         }, msPerTick);
       });

@@ -24,10 +24,11 @@ const SocketClient = (() => {
     onVehicleDriverChanged:null, // ({plate, driverId, x?, z?, rotY?}) → มีคนขึ้น/ลงรถ
     onVehiclePassengerChanged: null, // ({plate, passengerIds, rejected?, reason?, evicted?}) → ผู้โดยสารขึ้น/ลง/ถูกเชิญออก
     onVehicleMoved:        null, // ({plate, x, z, rotY, speed, fuel}) → รถที่มีคนขับอยู่ขยับ
-    onPlayerHit:            null, // ({attackerId, damage}) → เราโดนตี (server เป็นคนตัดสินและส่งมา)
+    onPlayerHit:            null, // ({attackerId, damage, isFinal}) → เราโดนตี (server เป็นคนตัดสินและส่งมา)
     onPlayerHpChanged:      null, // ({id, hp}) → HP ผู้เล่นคนอื่นเปลี่ยน (ไว้ sync ของจริงถ้า server ส่งมา)
     onPlayerDied:           null, // ({id, killerId}) → ผู้เล่นคนนั้นตาย
     onPlayerRespawned:      null, // ({id, x, z}) → ผู้เล่นคนนั้นฟื้นแล้ว
+    onSoundEvent:           null, // ({soundId, x, z}) → มีคนเล่นเสียง world sound ใกล้ๆ (heal/hit/hit_final/walk)
   };
 
   // ── Connect ────────────────────────────────
@@ -140,6 +141,12 @@ const SocketClient = (() => {
     socket.on('playerRespawned', (data) => {
       if (_handlers.onPlayerRespawned) _handlers.onPlayerRespawned(data);
     });
+
+    // ── Sound Events ─────────────────────────
+    // world sound (heal/hit/hit_final/walk) ที่ผู้เล่นคนอื่นเล่น — เราคำนวณ volume ตามระยะเอง
+    socket.on('soundEvent', (data) => {
+      if (_handlers.onSoundEvent) _handlers.onSoundEvent(data);
+    });
   }
 
   // ── Join เกมหลัง connect แล้ว ─────────────
@@ -222,6 +229,13 @@ const SocketClient = (() => {
     socket.emit('playerRespawn', {});
   }
 
+  // ── Sound: ส่ง world sound (heal/hit/hit_final/walk) ให้ server broadcast ต่อ ──
+  // soundId ต้องเป็นหนึ่งใน whitelist ฝั่ง server (heal/hit/hit_final/walk) — server เป็นคนกรองซ้ำอีกที
+  function sendSoundEvent(soundId, x, z) {
+    if (!socket || !socket.connected) return;
+    socket.emit('soundEvent', { soundId, x, z });
+  }
+
   // ── ผูก event handlers ─────────────────────
   function on(event, fn) {
     if (event in _handlers) _handlers[event] = fn;
@@ -236,7 +250,7 @@ const SocketClient = (() => {
     connect, joinGame, sendPosition, on, getSelfId, isConnected,
     vehicleRetrieve, vehicleStore, vehicleColor, vehicleLock, vehicleEnter, vehicleExit, sendVehiclePosition,
     vehiclePassengerEnter, vehiclePassengerExit,
-    attackPlayer, playerRespawn,
+    attackPlayer, playerRespawn, sendSoundEvent,
   };
 
 })();

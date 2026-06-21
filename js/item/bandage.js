@@ -112,6 +112,11 @@ function _finishBandageUse() {
     Player.heal(Player.maxHp);
   }
 
+  // ── เสียง: พันแผลสำเร็จ (progress = 100%) เล่นจากตำแหน่งตัวเอง + ส่งให้คนแถวนั้นได้ยินด้วย ──
+  if (typeof SoundSystem !== 'undefined' && typeof Player !== 'undefined') {
+    SoundSystem.playWorld('heal', { x: Player.x, z: Player.z });
+  }
+
   // หักไอเทมผ้าพันแผลที่ใช้ไปเอง (ไม่ผ่าน useSlot เพราะเราคืน false ตอนกดใช้ครั้งแรกเพื่อรอ process ก่อน)
   if (typeof Inventory !== 'undefined' && typeof Inventory.removeItem === 'function') {
     Inventory.removeItem('bandage', 1, true);
