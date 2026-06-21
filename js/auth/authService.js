@@ -159,6 +159,13 @@ const AuthService = (() => {
   }
 
   function logout() {
+    // เก็บรถเข้าการาจและ flush ข้อมูลขึ้น server ก่อนออก
+    if (typeof Garage !== 'undefined' && typeof Garage.forceStoreAll === 'function') {
+      Garage.forceStoreAll();
+    }
+    if (typeof DataService !== 'undefined' && typeof DataService.syncToServer === 'function') {
+      DataService.syncToServer(); // best-effort
+    }
     localStorage.removeItem('playtown_session');
     _currentUsername = null;
   }

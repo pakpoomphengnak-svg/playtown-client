@@ -1139,10 +1139,16 @@ if (typeof Garage.initSpawnFromState === 'function') {
   Garage.initSpawnFromState();
 }
 
-// ── ผู้เล่นออกจากเกม → force-park รถทุกคัน ──
-window.addEventListener('pagehide', () => {
-  if (typeof Garage.forceStoreAll === 'function') Garage.forceStoreAll();
-});
-window.addEventListener('beforeunload', () => {
-  if (typeof Garage.forceStoreAll === 'function') Garage.forceStoreAll();
-});
+// ── ผู้เล่นออกจากเกม → force-park รถทุกคัน แล้ว sync ไป Firestore ──
+// สำคัญ: ต้องรัน forceStoreAll (sync) ก่อน syncToServer (async) เสมอ
+// เพื่อให้ garage state ใน localStorage เป็น stored:true ก่อนที่จะ flush ขึ้น server
+function _onExitFlushGarage() {
+  if (typeof Garage !== 'undefined' && typeof Garage.forceStoreAll === 'function') {
+    Garage.forceStoreAll();
+  }
+  if (typeof DataService !== 'undefined' && typeof DataService.syncToServer === 'function') {
+    DataService.syncToServer(); // best-effort: browser อาจปิดก่อน await เสร็จ แต่ localStorage ถูกต้องแล้ว
+  }
+}
+window.addEventListener('pagehide',     _onExitFlushGarage);
+window.addEventListener('beforeunload', _onExitFlushGarage);

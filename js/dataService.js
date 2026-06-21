@@ -170,5 +170,5 @@ const DataService = {
 
 // ── Auto sync ──────────────────────────────────
 setInterval(() => DataService.syncToServer(), 30 * 1000);
-window.addEventListener('beforeunload', () => DataService.syncToServer());
-window.addEventListener('pagehide',     () => DataService.syncToServer());
+// หมายเหตุ: pagehide/beforeunload ถูกจัดการรวมใน garage.js (_onExitFlushGarage)
+// เพื่อให้ Garage.forceStoreAll() รันก่อน syncToServer() เสมอ — ห้ามเพิ่ม listener ซ้ำที่นี่
