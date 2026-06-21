@@ -48,8 +48,13 @@ function _loadTuningColor(plate) {
 
 // ── Apply สีตัวถังกับ mesh รถ ───────────────────
 // traverse ทุก mesh ใน group ที่เป็น "ตัวถังหลัก" (ไม่ใช่ล้อ, กระจก, ไฟ)
-// ตรรกะ: mesh ที่มี material color ใกล้เคียงสีตัวถังเดิม (ตาม bodyColorRef) คือตัวถัง
-// แต่วิธีที่ง่ายและ robust กว่าคือ traverse แล้ว skip material พิเศษ (กระจก, ไฟ, ยาง, โครเมียม)
+// ตรรกะ: เทียบกับสี "ดั้งเดิมตอนสร้างรถ" ของแต่ละ mesh (ไม่ใช่สีปัจจุบัน) ว่าตรงกับ
+// SKIP_COLORS (กระจก/ยาง/โครเมียม/ไฟ) ไหม — แคชสีดั้งเดิมไว้ใน userData ตั้งแต่ครั้งแรกที่เจอ mesh นี้
+// เหตุผลที่ต้องแคช ไม่เทียบสีปัจจุบันตรงๆ: ถ้าเทียบสีปัจจุบัน แล้วผู้เล่นทาสีตัวถังเป็นสีที่ดันชนกับ
+// SKIP_COLORS พอดี (เช่น ดำ #111111 หรือ เงิน #c0c0c0 ในพาเลท) การทาสีครั้งถัดไปจะมองว่าชิ้นนั้น
+// "ไม่ใช่ตัวถัง" แล้วข้ามไปทันที ทำให้ทาสีซ้ำไม่ติดอีกเลย — และที่หนักกว่าคือบางรุ่น (เช่น R32 สีขาว)
+// มีสีตัวถังดั้งเดิม (0xe8e8e8) ที่ชนกับ SKIP_COLORS อยู่แล้วตั้งแต่แรก ทำให้ส่วนนั้นทาสีไม่ติดเลย
+// ไม่ว่าใครก็ตาม (รวมถึงเจ้าของเองที่เห็นรถตัวเองไม่ครบสี และคนอื่นที่ sync เห็นแต่สีเดิม)
 function applyVehicleColor(vehicleObj, colorHex) {
   if (!vehicleObj || !vehicleObj.mesh) return;
 
@@ -74,13 +79,16 @@ function applyVehicleColor(vehicleObj, colorHex) {
     const c = child.material.color;
     if (!c) return;
 
-    // แปลง THREE.Color เป็น hex int เพื่อเทียบ
-    const hexInt = (Math.round(c.r * 255) << 16)
-                 | (Math.round(c.g * 255) << 8)
-                 |  Math.round(c.b * 255);
+    // ── แคชสีดั้งเดิมไว้ครั้งแรกที่เจอ mesh นี้ (ก่อนโดนทาสีทับ) ──
+    // ใช้ userData เพราะติดไปกับ mesh ของรถคันนี้โดยตรง ไม่ปนกับรถคันอื่น
+    if (child.userData._tuningOrigColorHex === undefined) {
+      child.userData._tuningOrigColorHex =
+        (Math.round(c.r * 255) << 16) | (Math.round(c.g * 255) << 8) | Math.round(c.b * 255);
+    }
+    const origHexInt = child.userData._tuningOrigColorHex;
 
-    // ถ้าอยู่ใน skip list → ข้าม
-    if (SKIP_COLORS.has(hexInt)) return;
+    // ถ้าสีดั้งเดิมอยู่ใน skip list → ข้าม (เช็คจากสีดั้งเดิมเสมอ ไม่ใช่สีปัจจุบัน)
+    if (SKIP_COLORS.has(origHexInt)) return;
 
     // สีที่เหลือถือว่าเป็นตัวถัง (body, roof, hood, trunk, bumper, mirror, wing ฯลฯ)
     // clone material เพื่อไม่ให้รถคันอื่นที่ใช้ builder เดียวกันเปลี่ยนสีตาม

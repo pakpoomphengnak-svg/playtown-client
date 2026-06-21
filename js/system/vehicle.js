@@ -92,10 +92,11 @@ function makeVehicle(type, x, z, rotY = 0) {
   return v;
 }
 
-// ── Panel ปุ่มรถ: [ ขึ้น/ลง ] [ ล็อก/ปลดล็อก ] ──
-// แสดงเมื่อเข้าใกล้รถ (ระยะ ENTER_DIST) — ปุ่มล็อกโชว์เฉพาะรถที่เรามีกุญแจ (เป็นเจ้าของ) เท่านั้น
+// ── Panel ปุ่มรถ: [ ขึ้น/ลง ] [ ล็อก/ปลดล็อก ] [ เปิดคลังรถ ] ──
+// แสดงเมื่อเข้าใกล้รถ (ระยะ ENTER_DIST) — ปุ่มล็อก/คลังโชว์เฉพาะรถที่เรามีกุญแจ (เป็นเจ้าของ) เท่านั้น
 // ปุ่มขึ้น/ลง: เดิม id="vehicle-btn" (คงไว้เพื่อความเข้ากันได้กับโค้ด/สไตล์เดิม)
-// ปุ่มล็อก/ปลดล็อก: ใหม่ id="vehicle-lock-btn"
+// ปุ่มล็อก/ปลดล็อก: id="vehicle-lock-btn"
+// ปุ่มเปิดคลังรถ (ท้ายรถ): id="vstorage-open-btn" — รวมมาจาก vehicleStorage.js ให้อยู่ panel เดียวกัน
 function makeVehiclePanel() {
   const panel = document.createElement('div');
   panel.id = 'vehicle-panel';
@@ -167,10 +168,29 @@ function makeVehiclePanel() {
   lockDiv.addEventListener('touchstart', e => { e.preventDefault(); e.stopPropagation(); handleLockPress(); }, { passive: false });
   lockDiv.addEventListener('click', e => { e.stopPropagation(); handleLockPress(); });
 
+  // ── ปุ่มเปิดคลังรถ (ท้ายรถ) ──
+  // สร้างไว้ที่นี่เพื่อให้อยู่ panel เดียวกับปุ่มขึ้น/ลงและล็อก — logic การเปิด/แสดง/ซ่อน
+  // ยังควบคุมจาก vehicleStorage.js เหมือนเดิม (ผ่าน id="vstorage-open-btn")
+  const trunkDiv = document.createElement('div');
+  trunkDiv.id = 'vstorage-open-btn';
+  trunkDiv.textContent = '🧰';
+  Object.assign(trunkDiv.style, {
+    display: 'none', cursor: 'pointer',
+    width: '50px', height: '50px',
+    borderRadius: '50%',
+    background: 'rgba(0,0,0,0.55)',
+    border: '2px solid #FDF6E3',
+    alignItems: 'center', justifyContent: 'center',
+    fontSize: '22px',
+    userSelect: 'none', WebkitUserSelect: 'none',
+    WebkitTapHighlightColor: 'transparent',
+  });
+
   panel.appendChild(enterDiv);
   panel.appendChild(lockDiv);
+  panel.appendChild(trunkDiv);
   document.body.appendChild(panel);
-  return { panel, enterDiv, lockDiv };
+  return { panel, enterDiv, lockDiv, trunkDiv };
 }
 
 // ── สลับล็อก/ปลดล็อกของรถ v (ต้องมีกุญแจ) — อัปเดตทันที (optimistic) + บันทึก + แจ้ง server ──
@@ -353,7 +373,7 @@ function makeFuelWarning() {
 }
 const fuelWarningEl = makeFuelWarning();
 
-const { panel: vehiclePanelEl, enterDiv: vehicleBtnEl, lockDiv: vehicleLockBtnEl } = makeVehiclePanel();
+const { panel: vehiclePanelEl, enterDiv: vehicleBtnEl, lockDiv: vehicleLockBtnEl, trunkDiv: vehicleTrunkBtnEl } = makeVehiclePanel();
 const speedometerEl = makeSpeedometer();
 
 // ── D-Pad สำหรับขับรถ ──────────────────────────
@@ -422,8 +442,17 @@ const dpadInput = { mx: 0, my: 0 };
 const { turnWrap: dpadTurnEl, driveWrap: dpadDriveEl } = makeDpad();
 
 // ── ขึ้นรถ ─────────────────────────────────────
-function enterVehicle(v) {
+// force=true → ข้าม guard การล็อก (ใช้เฉพาะตอนเจ้าของเบิกรถออกมาแล้วขึ้นทันที — garage.js)
+// เช็คล็อกซ้ำที่นี่เสมอ (ไม่พึ่งแค่จุดเรียกที่ปุ่ม/คีย์บอร์ด) กันกรณี nearbyVehicle ค้างค่าเก่า
+// หรือมีโค้ดอื่นเรียก enterVehicle() ตรงๆ โดยลืมเช็คล็อกเอง
+function enterVehicle(v, force) {
   if (isInVehicle) return;
+  if (!force && v && v.locked) {
+    if (typeof Notification !== 'undefined') {
+      Notification.show('รถถูกล็อกอยู่ ปลดล็อกก่อนขึ้นรถ', { icon: '🔒', color: '#f44336' });
+    }
+    return;
+  }
   isInVehicle    = true;
   v.driven       = true;
   v.localDriven  = true; // คันนี้คือคันที่ "เรา" กำลังขับอยู่ (ต่างจาก driven ที่หมายถึง "มีคนขับอยู่" เฉยๆ รวมถึงคนอื่น)

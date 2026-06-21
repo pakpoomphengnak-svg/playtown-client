@@ -126,25 +126,10 @@ const VehicleStorage = {
 // ── UI ────────────────────────────────────────
 (function initVehicleStorageUI() {
 
-  // ── ปุ่ม "🧰 เปิดท้ายรถ" — โผล่ตอนอยู่ใกล้/อยู่ในรถที่มีกุญแจ ──
-  const openBtn = document.createElement('div');
-  openBtn.id = 'vstorage-open-btn';
-  openBtn.textContent = '🧰 เปิดท้ายรถ';
-  Object.assign(openBtn.style, {
-    position: 'fixed', bottom: '112px', left: '50%',
-    transform: 'translateX(-50%) scale(0.9)',
-    background: 'rgba(38,50,56,0.92)',
-    border: '2px solid rgba(176,190,197,0.65)',
-    borderRadius: '24px', padding: '10px 28px',
-    color: '#eceff1', fontSize: '15px', fontFamily: 'sans-serif',
-    fontWeight: 'bold', display: 'none', alignItems: 'center',
-    justifyContent: 'center', cursor: 'pointer', zIndex: '50',
-    userSelect: 'none', boxShadow: '0 4px 18px #0008',
-    transition: 'transform 0.12s, opacity 0.12s',
-    WebkitTapHighlightColor: 'transparent',
-    gap: '8px',
-  });
-  document.body.appendChild(openBtn);
+  // ── ปุ่ม "🧰 เปิดท้ายรถ" — ใช้ปุ่มเดียวกับ panel รถ (vehicle.js) แทนการสร้างปุ่มลอยแยก ──
+  // เพื่อให้ ขึ้นรถ/ลงรถ, ล็อกรถ/ปลดล็อกรถ, เปิดคลังรถ อยู่ panel เดียวกันทั้งหมด
+  // โผล่ตอนอยู่ใกล้/อยู่ในรถที่มีกุญแจ — ตำแหน่ง/สไตล์ปุ่มถูกกำหนดไว้แล้วใน makeVehiclePanel()
+  const openBtn = vehicleTrunkBtnEl;
 
   // ── Overlay (หน้าท้ายรถ) ──────────────────────
   const overlay = document.createElement('div');
@@ -816,13 +801,9 @@ const VehicleStorage = {
     _targetVehicle = candidate;
 
     if (candidate && !Notification._openDelayActive) {
-      openBtn.style.display   = 'flex';
-      openBtn.style.transform = 'translateX(-50%) scale(1)';
-      openBtn.style.opacity   = '1';
+      openBtn.style.display = 'flex';
     } else {
-      openBtn.style.display   = 'none';
-      openBtn.style.transform = 'translateX(-50%) scale(0.9)';
-      openBtn.style.opacity   = '0';
+      openBtn.style.display = 'none';
     }
   };
 

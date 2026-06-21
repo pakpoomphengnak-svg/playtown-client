@@ -128,9 +128,9 @@ const SocketClient = (() => {
   }
 
   // ── Vehicle: เบิกรถออกจากการาจ (แจ้ง server หลัง local spawn สำเร็จ) ──
-  function vehicleRetrieve(plate, type, x, z, rotY, fuel) {
+  function vehicleRetrieve(plate, type, x, z, rotY, fuel, locked, autoEnter) {
     if (!socket || !socket.connected) return;
-    socket.emit('vehicleRetrieve', { plate, type, x, z, rotY, fuel });
+    socket.emit('vehicleRetrieve', { plate, type, x, z, rotY, fuel, locked, autoEnter });
   }
 
   // ── Vehicle: เก็บรถเข้าการาจ ──────────────

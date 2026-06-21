@@ -69,6 +69,8 @@ const RemotePlayers = (() => {
       targetRotY: player.rotY || 0,
       lastX: player.x,
       lastZ: player.z,
+      isMoving: false,
+      _lastPacketTime: 0,
       weaponId: null,       // weaponId ที่ถืออยู่ตอนนี้ | null
       weaponModel: null,    // THREE.Object3D ของโมเดลอาวุธที่แปะอยู่ | null
       isInVehicle: false,
@@ -120,9 +122,26 @@ const RemotePlayers = (() => {
   }
 
   // ── อัปเดตตำแหน่งเป้าหมาย (จะ smooth ไปหาใน update()) ──
+  // คำนวณ isMoving ตรงนี้ (ตอนแพ็กเก็ตตำแหน่งใหม่มาถึงจริงๆ) ไม่ใช่ทุกเฟรมเรนเดอร์ —
+  // เพราะตำแหน่งจาก network อัปเดตแค่ ~10 ครั้ง/วิ (ดู POS_SEND_INTERVAL ฝั่งคนส่ง) แต่ update()
+  // รันทุกเฟรม (~60 ครั้ง/วิ) ถ้าคำนวณ dist/dt ทุกเฟรมจาก targetX/Z ที่เพิ่งถูก sync ไปเท่ากับ lastX/Z
+  // เมื่อเฟรมก่อนหน้า จะได้ dist=0 เกือบทุกเฟรม ทำให้ isMoving กระพริบจริง/เท็จสลับไปมาแบบสุ่ม
+  // และแทบจะอ่านว่า "หยุดนิ่ง" ตลอด → คนอื่นเห็นตัวละครไม่เล่นท่าเดิน/วิ่งให้
   function updatePosition(data) {
     const entry = _players[data.id];
     if (!entry) return; // ยังไม่เคยเห็นคนนี้ (เผื่อ event มาก่อน playerJoined)
+
+    // ── เดาว่ากำลังเดิน/วิ่งอยู่หรือไม่ จากระยะที่ขยับจริงระหว่างแพ็กเก็ตนี้กับแพ็กเก็ตก่อนหน้า ──
+    const now = performance.now();
+    const dtPacket = entry._lastPacketTime ? (now - entry._lastPacketTime) / 1000 : 0;
+    const dx = data.x - entry.targetX;
+    const dz = data.z - entry.targetZ;
+    const dist = Math.sqrt(dx * dx + dz * dz);
+    if (dtPacket > 0) {
+      entry.isMoving = (dist / dtPacket) > MOVE_THRESHOLD;
+    }
+    entry._lastPacketTime = now;
+
     entry.targetX = data.x;
     entry.targetZ = data.z;
     entry.targetRotY = data.rotY || 0;
@@ -144,6 +163,7 @@ const RemotePlayers = (() => {
       entry.group.position.z = data.z;
       entry.lastX = data.x;
       entry.lastZ = data.z;
+      entry.isMoving = false; // เพิ่งลงรถ ยังไม่ได้ขยับเดิน
     }
   }
 
@@ -179,13 +199,8 @@ const RemotePlayers = (() => {
       while (diff < -Math.PI) diff += Math.PI * 2;
       g.rotation.y += diff * lerpSpeed;
 
-      // ── เดาว่ากำลังเดินอยู่หรือไม่ จากความเร็วของตำแหน่งเป้าหมาย ──
-      const dx = entry.targetX - entry.lastX;
-      const dz = entry.targetZ - entry.lastZ;
-      const dist = Math.sqrt(dx * dx + dz * dz);
-      const isMoving = dt > 0 && (dist / dt) > MOVE_THRESHOLD;
-      entry.lastX = entry.targetX;
-      entry.lastZ = entry.targetZ;
+      // ── ใช้สถานะ "กำลังเดิน/วิ่ง" ที่คำนวณไว้แล้วตอนแพ็กเก็ตตำแหน่งมาถึง (ดู updatePosition) ──
+      const isMoving = !!entry.isMoving;
 
       if (typeof animateCharacterParts === 'function' && entry.parts) {
         animateCharacterParts(entry.parts, entry.animState, isMoving, !!entry.isSprinting, dt);

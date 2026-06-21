@@ -303,8 +303,13 @@ const Garage = {
     this._save(state);
 
     // ── แจ้ง server ว่ารถคันนี้ถูกเบิกออกมา (ให้คนอื่นเห็นรถคันนี้ในโลกด้วย) ──
+    // ส่ง v.locked ไปด้วยเสมอ กัน server lock state เพี้ยน/ไม่ตรงกับของจริง
+    // (เช่นกรณี server restart แล้ว state เก่าหายไป จะได้ sync ใหม่จาก client ที่เป็นเจ้าของถูกต้อง)
+    // ส่ง autoEnter ตรงกับเงื่อนไขด้านล่างเป๊ะ ให้ server รู้ว่าจะมี vehicleEnter ตามมาทันทีไหม
+    // (ใช้กำหนดสิทธิ์ bypass ล็อกครั้งเดียวตอนเบิกรถของตัวเองเท่านั้น)
+    const willAutoEnter = !isInVehicle;
     if (typeof SocketClient !== 'undefined' && SocketClient.isConnected()) {
-      SocketClient.vehicleRetrieve(plate, record.type, spot.x, spot.z, spot.rotY, v.fuel);
+      SocketClient.vehicleRetrieve(plate, record.type, spot.x, spot.z, spot.rotY, v.fuel, v.locked, willAutoEnter);
     }
 
     const item = DEALERSHIP_CATALOG[record.type];
@@ -312,8 +317,8 @@ const Garage = {
       Notification.showItemCard({ type: 'gain', emoji: '🚗', itemName: item ? item.name : record.type, amount: plate });
     }
 
-    if (!isInVehicle && typeof enterVehicle === 'function') {
-      enterVehicle(v);
+    if (willAutoEnter && typeof enterVehicle === 'function') {
+      enterVehicle(v, true); // force: รถของตัวเองที่เพิ่งเบิกออกมา ขึ้นได้เสมอแม้ตั้งล็อกไว้
     }
 
     return { ok: true };
