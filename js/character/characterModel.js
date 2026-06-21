@@ -77,7 +77,7 @@ function createCharacterModel(gender) {
   group.add(headGroup);
 
   // กะโหลก
-  const headRadius = isFemale ? 0.24 : 0.27;
+  const headRadius = isFemale ? 0.25 : 0.265;
   const headMesh = new THREE.Mesh(
     new THREE.SphereGeometry(headRadius, 14, 14),
     new THREE.MeshLambertMaterial({ color: C_SKIN })

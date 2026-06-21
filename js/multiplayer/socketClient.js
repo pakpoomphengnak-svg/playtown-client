@@ -151,9 +151,10 @@ const SocketClient = (() => {
   }
 
   // ── Vehicle: เบิกรถออกจากการาจ (แจ้ง server หลัง local spawn สำเร็จ) ──
-  function vehicleRetrieve(plate, type, x, z, rotY, fuel, locked, autoEnter) {
+  // colorHex: สีที่เคยแต่งไว้ (จาก localStorage) ส่งไปด้วยตอนเบิกครั้งแรก กันคนอื่นเห็นเป็นสีโรงงาน
+  function vehicleRetrieve(plate, type, x, z, rotY, fuel, locked, autoEnter, colorHex) {
     if (!socket || !socket.connected) return;
-    socket.emit('vehicleRetrieve', { plate, type, x, z, rotY, fuel, locked, autoEnter });
+    socket.emit('vehicleRetrieve', { plate, type, x, z, rotY, fuel, locked, autoEnter, colorHex });
   }
 
   // ── Vehicle: เก็บรถเข้าการาจ ──────────────

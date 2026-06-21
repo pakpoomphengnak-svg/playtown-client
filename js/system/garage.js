@@ -307,9 +307,12 @@ const Garage = {
     // (เช่นกรณี server restart แล้ว state เก่าหายไป จะได้ sync ใหม่จาก client ที่เป็นเจ้าของถูกต้อง)
     // ส่ง autoEnter ตรงกับเงื่อนไขด้านล่างเป๊ะ ให้ server รู้ว่าจะมี vehicleEnter ตามมาทันทีไหม
     // (ใช้กำหนดสิทธิ์ bypass ล็อกครั้งเดียวตอนเบิกรถของตัวเองเท่านั้น)
+    // ส่ง colorHex (สีที่เคยแต่งไว้) ไปด้วย — กันบั๊กคนอื่นเห็นรถเป็นสีโรงงานทั้งที่เราแต่งสีไว้แล้ว
+    // (เดิมตอนเบิกรถ client คืนสีให้ตัวเองเห็นเฉยๆ ผ่าน TuningRestoreColor แต่ไม่เคยบอก server เลย)
     const willAutoEnter = !isInVehicle;
+    const savedColorHex = (typeof window.TuningGetSavedColor === 'function') ? window.TuningGetSavedColor(plate) : null;
     if (typeof SocketClient !== 'undefined' && SocketClient.isConnected()) {
-      SocketClient.vehicleRetrieve(plate, record.type, spot.x, spot.z, spot.rotY, v.fuel, v.locked, willAutoEnter);
+      SocketClient.vehicleRetrieve(plate, record.type, spot.x, spot.z, spot.rotY, v.fuel, v.locked, willAutoEnter, savedColorHex);
     }
 
     const item = DEALERSHIP_CATALOG[record.type];

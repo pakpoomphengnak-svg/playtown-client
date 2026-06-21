@@ -16,6 +16,29 @@
 // ── WEAPON_DEFS: registry ที่ไฟล์ js/weapon/*.js จะลงทะเบียนตัวเองเข้ามา ──
 const WEAPON_DEFS = {};
 
+// ── ท่ามือเปล่า — ใช้ตอนไม่ได้ถืออาวุธอะไรเลย (ไม่ลงทะเบียนใน WEAPON_DEFS เพราะไม่ใช่ไอเทม/ไม่มีใน hotbar) ──
+// ค่าตั้งไว้เบากว่าอาวุธทุกชนิด ระยะสั้นกว่า ไม่มี stun — แค่ให้ตีกันมือเปล่าได้จริง ไม่ใช่บังคับต้องมีอาวุธ
+const UNARMED_DEF = {
+  id:          'unarmed',
+  name:        'มือเปล่า',
+  damage:      8,
+  range:       1.3,
+  attackSpeed: 0.8, // ตรงกับ ATTACK_DURATION ของท่ามือเปล่าใน characterAnim.js
+  onAttack(attacker, targets) {
+    let hit = false;
+    for (const target of targets) {
+      if (typeof target.takeDamage === 'function') {
+        target.takeDamage(this.damage);
+        hit = true;
+      }
+    }
+    if (hit && typeof Inventory !== 'undefined' && typeof Inventory._toast === 'function') {
+      Inventory._toast(`ชกมือเปล่า! -${this.damage} HP`, { icon: '👊', color: '#8d6e63' });
+    }
+    return hit;
+  },
+};
+
 const WeaponSystem = {
 
   // ── State ────────────────────────────────────────────────
@@ -95,9 +118,8 @@ const WeaponSystem = {
    * @param {number} [dt=0] delta time (ส่งจาก game loop ถ้าต้องการ tick cooldown ที่นี่)
    */
   onAttack(dt = 0) {
-    // ไม่มีอาวุธ → ตีมือเปล่า (ไม่ทำอะไรพิเศษ ปล่อยให้ animation ทำงานตามปกติ)
-    const def = this.getEquipped();
-    if (!def) return false;
+    // ไม่มีอาวุธ → ใช้ท่ามือเปล่า (ยังตีโดนจริง โดนดาเมจจริง แค่เบากว่าและระยะสั้นกว่าอาวุธ)
+    const def = this.getEquipped() ?? UNARMED_DEF;
 
     // ยังอยู่ใน cooldown
     if (this._cooldownTimer > 0) return false;

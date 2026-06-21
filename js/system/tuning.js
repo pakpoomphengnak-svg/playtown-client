@@ -107,6 +107,10 @@ function restoreVehicleColor(vehicleObj) {
 
 // expose ให้ garage.js เรียกหลัง spawn
 window.TuningRestoreColor = restoreVehicleColor;
+// expose ให้ garage.js อ่านสีที่เคยบันทึกไว้ ก่อนส่ง vehicleRetrieve ไป server
+// (กันบั๊ก: เคยมีปัญหาคนอื่นไม่เห็นสีที่เราแต่งไว้ เพราะตอนเบิกรถ client คืนสีให้ตัวเองเห็นอย่างเดียว
+//  แต่ไม่เคยส่ง colorHex ไปบอก server เลย — server เลยมองว่ารถคันนี้ยังไม่มีสี ทำให้คนอื่นเห็นเป็นสีโรงงาน)
+window.TuningGetSavedColor = _loadTuningColor;
 
 // ─────────────────────────────────────────────────────────────
 // UI
