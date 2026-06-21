@@ -13,6 +13,7 @@
 // ─────────────────────────────────────────────
 
 const TUNING_SHOP_CENTER = { x: 38, z: -50 };
+window.TUNING_SHOP_CENTER = TUNING_SHOP_CENTER; // เผื่อ minimap.js อ่านค่าสด
 const TUNING_SHOP_RADIUS = 10;
 
 (function buildTuningShop() {

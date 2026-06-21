@@ -18,6 +18,7 @@
 
 // จุดอ้างอิง: ใต้ประตูสวนลงมา (เผื่อระยะให้คนเดินจากรถเข้าประตูได้พอดี)
 const PARKING_CENTER = { x: PARK_CENTER.x, z: PARK_CENTER.z + PARK_SIZE / 2 + 12 };
+window.PARKING_CENTER = PARKING_CENTER; // เผื่อ minimap.js อ่านค่าสด
 const PARKING_RADIUS = 11;
 
 // วงเบิกรถ (ฝั่งซ้าย) และวงเก็บรถ (ฝั่งขวา) — แยกห่างกันคนละฝั่งของลาน

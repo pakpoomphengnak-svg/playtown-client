@@ -5,6 +5,7 @@
 // ─────────────────────────────────────────────
 
 const MINING_FARM_CENTER = { x: -150, z: 150 };
+window.MINING_FARM_CENTER = MINING_FARM_CENTER; // เผื่อ minimap.js อ่านค่าสด
 const MINING_FARM_SIZE    = 20; // ขนาดเท่าฟาร์มอื่นๆ
 
 // ตำแหน่งหินแร่ทั้งหมด (world space) — ให้ระบบอื่นอ้างอิงในอนาคต

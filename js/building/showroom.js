@@ -18,6 +18,7 @@
 // ─────────────────────────────────────────────
 
 const SHOWROOM_CENTER = { x: 38, z: 84 };
+window.SHOWROOM_CENTER = SHOWROOM_CENTER; // เผื่อ minimap.js อ่านค่าสด
 const SHOWROOM_RADIUS = 9;
 
 (function buildShowroom() {

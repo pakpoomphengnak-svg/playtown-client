@@ -2,8 +2,8 @@
 // ─────────────────────────────────────────────
 // BANK SYSTEM — ระบบฝากถอนเงินสด ณ ตู้ ATM
 //
-// ตู้ ATM ตั้งอยู่ที่ ATM_CENTER (ดู building/atm.js)
-// เดินเข้าใกล้ ≤ ATM_INTERACT_RADIUS → ปุ่ม "🏧 ใช้ตู้ ATM" โผล่
+// ตู้ ATM ตั้งอยู่ที่ตำแหน่งใดๆ ใน ATM_POSITIONS (ดู building/atm.js) — รองรับได้หลายตู้
+// เดินเข้าใกล้ตู้ใดตู้หนึ่ง ≤ ATM_INTERACT_RADIUS → ปุ่ม "🏧 ใช้ตู้ ATM" โผล่
 // กดปุ่ม → overlay เปิด แสดงยอดเงินสด (กระเป๋า) และยอดเงินฝาก (ธนาคาร)
 // ฝาก/ถอน ผ่านปุ่ม + popup กรอกจำนวน (ใช้ Cash API กับ ITEM_DEFS.cash)
 //
@@ -11,7 +11,7 @@
 //   Bank                 object  — state เงินฝากธนาคาร (persist localStorage)
 //   window.updateATM()           — เรียกทุก frame จาก game.js (เช็คระยะ + โชว์/ซ่อนปุ่ม)
 //
-// ใช้ ATM_CENTER จาก building/atm.js (ตำแหน่งตู้ ATM)
+// ใช้ ATM_POSITIONS จาก building/atm.js (ตำแหน่งตู้ ATM ทุกจุด — เช็คตู้ที่ใกล้ที่สุด)
 // ใช้ Cash API (item/cash.js) ในการ ฝาก/ถอน เงินสดจากกระเป๋า
 // ต้องโหลดหลัง: building/atm.js, item/cash.js, system/inventory.js, system/notification.js
 // ต้องโหลดก่อน: game.js
@@ -461,9 +461,19 @@ Bank.load();
       return;
     }
 
-    const dx     = Player.x - ATM_CENTER.x;
-    const dz     = Player.z - ATM_CENTER.z;
-    const inZone = (dx * dx + dz * dz) <= ATM_INTERACT_RADIUS * ATM_INTERACT_RADIUS;
+    // หาตู้ ATM ที่ใกล้ผู้เล่นที่สุด (รองรับหลายตู้ เหมือน cementProp.js/wireProp.js)
+    const atmList = (typeof ATM_POSITIONS !== 'undefined' && ATM_POSITIONS.length)
+      ? ATM_POSITIONS
+      : [ATM_CENTER]; // fallback เผื่อไม่มีลิสต์ (ไม่ควรเกิดขึ้น)
+
+    let nearestDistSq = Infinity;
+    for (let i = 0; i < atmList.length; i++) {
+      const dx = Player.x - atmList[i].x;
+      const dz = Player.z - atmList[i].z;
+      const distSq = dx * dx + dz * dz;
+      if (distSq < nearestDistSq) nearestDistSq = distSq;
+    }
+    const inZone = nearestDistSq <= ATM_INTERACT_RADIUS * ATM_INTERACT_RADIUS;
 
     if (inZone && !Notification._openDelayActive) {
       openBtn.style.display   = 'flex';

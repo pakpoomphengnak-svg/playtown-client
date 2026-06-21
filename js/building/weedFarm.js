@@ -5,6 +5,7 @@
 // ─────────────────────────────────────────────
 
 const WEED_FARM_CENTER = { x: -70, z: 70 };
+window.WEED_FARM_CENTER = WEED_FARM_CENTER; // เผื่อ minimap.js อ่านค่าสด
 const WEED_FARM_SIZE    = 20; // ขนาดเท่าฟาร์มแอปเปิ้ล/องุ่น
 
 // ตำแหน่งกระถางต้นกัญชาทั้งหมด (world space) — เผื่อระบบอื่นในอนาคตอ้างอิงจุดต้นกัญชา

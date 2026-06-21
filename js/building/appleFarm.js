@@ -5,6 +5,7 @@
 // ─────────────────────────────────────────────
 
 const APPLE_FARM_CENTER = { x: 180, z: -55 };
+window.APPLE_FARM_CENTER = APPLE_FARM_CENTER; // เผื่อ minimap.js อ่านค่าสด (const ไม่ผูกกับ window อัตโนมัติ)
 const APPLE_FARM_SIZE    = 20; // เล็กกว่าสวนสาธารณะ เน้นความน่ารัก
 
 // ตำแหน่งต้นแอปเปิ้ลทั้งหมด (world space) — ให้ pickup/applePickup.js ใช้วางจุดเก็บแอปเปิ้ลใต้ต้น

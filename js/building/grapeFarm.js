@@ -5,6 +5,7 @@
 // ─────────────────────────────────────────────
 
 const GRAPE_FARM_CENTER = { x: 110, z: -130 };
+window.GRAPE_FARM_CENTER = GRAPE_FARM_CENTER; // เผื่อ minimap.js อ่านค่าสด
 const GRAPE_FARM_SIZE    = 20; // ขนาดเท่าฟาร์มแอปเปิ้ล เน้นความน่ารัก
 
 // ตำแหน่งซุ้มเถาองุ่นทั้งหมด (world space) — เผื่อระบบอื่นในอนาคตอ้างอิงจุดต้นองุ่น

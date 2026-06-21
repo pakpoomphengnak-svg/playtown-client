@@ -1,31 +1,44 @@
 // client/js/building/atm.js
 // ─────────────────────────────────────────────
-// BUILDING: ATM — โมเดลตู้ฝากถอนเงินสด
+// BUILDING: ATM — โมเดลตู้ฝากถอนเงินสด (รองรับหลายจุด เหมือน cementProp.js/wireProp.js)
 //
-// ตู้ ATM ตั้งอยู่ข้างร้านสะดวกซื้อ (STORE_CENTER) ฝั่งตะวันออก
 // ไฟล์นี้สร้างเฉพาะโมเดล 3D + collider เท่านั้น
-// ระบบฝาก/ถอน + UI อยู่ใน system/bank.js
+// ระบบฝาก/ถอน + UI อยู่ใน system/bank.js (เช็คระยะจากตู้ที่ใกล้ที่สุดในลิสต์)
+//
+// วิธีเพิ่มจุดวาง: เติม { x, z } ลงใน ATM_POSITIONS ด้านล่าง — ทุกตู้ใช้ฝาก/ถอนได้จริงหมด
 //
 // export globals:
-//   ATM_CENTER   { x, z }  — จุดกึ่งกลางตู้ ATM (ใช้ใน system/bank.js)
-//   ATM_RADIUS   number    — รัศมีโซนเข้าใช้ตู้ (ใช้อ้างอิงถ้าจำเป็น)
+//   ATM_POSITIONS   [{x,z}]  — ตำแหน่งตู้ ATM ทุกจุด (ใช้ใน system/bank.js)
+//   ATM_CENTER      { x, z }  — alias ของตู้แรกใน ATM_POSITIONS (เผื่อโค้ดเก่า/minimap.js อ้างอิงจุดเดียว)
+//   ATM_RADIUS      number    — รัศมีโซนเข้าใช้ตู้ (ใช้อ้างอิงถ้าจำเป็น)
 //
 // ใช้ scene / colliders / groundMeshes ที่ประกาศใน world/ground.js
 // ต้องโหลดหลัง: core/scene.js, world/ground.js, building/store.js
 // ต้องโหลดก่อน: system/bank.js, game.js
 // ─────────────────────────────────────────────
 
-// อ้างอิงตำแหน่งร้านสะดวกซื้อ (ถ้าโหลดก่อนไฟล์นี้) — วางตู้ ATM ข้างร้าน ฝั่ง +X
-const ATM_CENTER = {
-  x: 96,
-  z: 73,
-};
-const ATM_RADIUS = 3;
+// ── จุดวางตู้ ATM ทั่วแมพ (เพิ่ม/ลบ/แก้ไขพิกัดได้ตรงนี้) ──
+const ATM_POSITIONS = [
+  { x: 96, z: 73 },   // ข้างร้านสะดวกซื้อ (STORE_CENTER) ฝั่งตะวันออก
+];
+window.ATM_POSITIONS = ATM_POSITIONS; // เผื่อ system อื่นอ่านค่าสด
 
-// ── 3D Model: ตู้ ATM ───────────────────────────
-(function buildATM() {
+// alias ตัวแรกไว้เผื่อโค้ดเก่า/minimap.js ที่อ้างอิงจุดเดียว (ตำแหน่งสด เพราะเป็น object เดียวกับใน ATM_POSITIONS[0])
+const ATM_CENTER = ATM_POSITIONS[0];
+window.ATM_CENTER = ATM_CENTER; // เผื่อ minimap.js อ่านค่าสด (const ไม่ผูกกับ window อัตโนมัติ)
+
+const ATM_RADIUS = 3;
+window.ATM_RADIUS = ATM_RADIUS;
+
+// ── เก็บ reference ตู้แต่ละตู้ไว้ (เผื่อระบบอื่นในอนาคต) ──
+const atmInstances = [];
+window.atmInstances = atmInstances;
+
+// ── 3D Model: ตู้ ATM 1 ตู้ ที่ตำแหน่ง (x, z) ──────
+function makeATM(x, z, rotY = 0) {
   const group = new THREE.Group();
-  group.position.set(ATM_CENTER.x, 0, ATM_CENTER.z);
+  group.position.set(x, 0, z);
+  group.rotation.y = rotY;
   scene.add(group);
 
   function makeBox(w, h, d, mat, px, py, pz, shadow = true) {
@@ -107,7 +120,24 @@ const ATM_RADIUS = 3;
   makeBox(0.08, 0.7, 0.08, trimMat,  0.6, 2.4, 0.55);
 
   // ── Collider (กันชนเดินทะลุตู้) ────────────────
-  colliders.push({ x: ATM_CENTER.x, z: ATM_CENTER.z, r: 0.7 });
-  colliders.push({ x: ATM_CENTER.x - 0.6, z: ATM_CENTER.z + 0.55, r: 0.15 });
-  colliders.push({ x: ATM_CENTER.x + 0.6, z: ATM_CENTER.z + 0.55, r: 0.15 });
-})();
+  const cos = Math.cos(rotY), sin = Math.sin(rotY);
+  // offset ของ collider ข้างตู้ (local space, ก่อนหมุน) → หมุนตาม rotY แล้วค่อยบวกตำแหน่งโลก
+  function rotatedOffset(lx, lz) {
+    return { x: x + (lx * cos - lz * sin), z: z + (lx * sin + lz * cos) };
+  }
+  const sideL = rotatedOffset(-0.6, 0.55);
+  const sideR = rotatedOffset(0.6, 0.55);
+
+  const colliderEntry = { x, z, r: 0.7 };
+  colliders.push(colliderEntry);
+  colliders.push({ x: sideL.x, z: sideL.z, r: 0.15 });
+  colliders.push({ x: sideR.x, z: sideR.z, r: 0.15 });
+
+  // ── เก็บ reference ไว้ให้ระบบอื่นใช้ (เช่น bank.js หา ATM ที่ใกล้ที่สุด) ──
+  atmInstances.push({ x, z, mesh: group, collider: colliderEntry });
+}
+
+// ── สร้างทุกจุดที่กำหนดไว้ใน ATM_POSITIONS ──
+ATM_POSITIONS.forEach((p, i) => {
+  makeATM(p.x, p.z, p.rotY ?? 0);
+});

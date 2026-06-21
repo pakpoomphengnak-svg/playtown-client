@@ -11,6 +11,7 @@
 // ─────────────────────────────────────────────
 
 const MARKET_CENTER = { x: 80, z: 80 };
+window.MARKET_CENTER = MARKET_CENTER; // เผื่อ minimap.js อ่านค่าสด
 const MARKET_RADIUS = 10;
 
 (function buildMarket() {

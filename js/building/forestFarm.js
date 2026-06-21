@@ -5,6 +5,7 @@
 // ─────────────────────────────────────────────
 
 const FOREST_FARM_CENTER = { x: -70, z: -70 };
+window.FOREST_FARM_CENTER = FOREST_FARM_CENTER; // เผื่อ minimap.js อ่านค่าสด
 const FOREST_FARM_SIZE    = 20; // ขนาดเท่าฟาร์มแอปเปิ้ล/องุ่น
 
 // ตำแหน่งต้นไม้ทั้งหมด (world space) — ให้ระบบอื่นอ้างอิงในอนาคต

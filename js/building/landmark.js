@@ -5,6 +5,7 @@
 // ─────────────────────────────────────────────
 
 const PARK_CENTER = { x: 110, z: 55 };
+window.PARK_CENTER = PARK_CENTER; // เผื่อ minimap.js อ่านค่าสด
 const PARK_SIZE    = 32; // ความกว้าง/ลึกของสวน (เต็มบล็อกถนน 40x40 เว้นขอบเล็กน้อย)
 
 (function buildParkLandmark() {

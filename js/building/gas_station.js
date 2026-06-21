@@ -18,6 +18,7 @@
 // ─────────────────────────────────────────────
 
 const GAS_STATION_CENTER = { x: 115, z: 140 };
+window.GAS_STATION_CENTER = GAS_STATION_CENTER; // เผื่อ minimap.js อ่านค่าสด
 const GAS_STATION_RADIUS = 10;
 
 (function buildGasStation() {

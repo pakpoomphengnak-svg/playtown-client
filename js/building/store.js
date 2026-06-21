@@ -16,6 +16,7 @@
 // ─────────────────────────────────────────────
 
 const STORE_CENTER = { x: 142, z: 87 };
+window.STORE_CENTER = STORE_CENTER; // เผื่อ minimap.js อ่านค่าสด
 const STORE_RADIUS = 8;
 
 (function buildStore() {

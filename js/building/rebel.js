@@ -14,6 +14,7 @@
 // ─────────────────────────────────────────────
 
 const REBEL_CENTER = { x: -90, z: -216 };
+window.REBEL_CENTER = REBEL_CENTER; // เผื่อ minimap.js อ่านค่าสด
 const REBEL_RADIUS = 12;
 
 (function buildRebel() {
