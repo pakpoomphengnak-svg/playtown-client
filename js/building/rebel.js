@@ -13,7 +13,7 @@
 // ต้องโหลดหลัง: core/scene.js, world/ground.js
 // ─────────────────────────────────────────────
 
-const REBEL_CENTER = { x: -90, z: -216 };
+const REBEL_CENTER = { x: -340, z: -340 };
 window.REBEL_CENTER = REBEL_CENTER; // เผื่อ minimap.js อ่านค่าสด
 const REBEL_RADIUS = 12;
 

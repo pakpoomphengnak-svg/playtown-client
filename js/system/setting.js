@@ -11,6 +11,7 @@ const Settings = (() => {
     shadowEnabled: true,
     antialiasEnabled: true,
     pixelRatioLevel: 'high', // 'low' | 'medium' | 'high'
+    fpsCounterEnabled: false,
   };
 
   const PIXEL_RATIO_VALUES = {
@@ -62,9 +63,16 @@ const Settings = (() => {
     window.location.reload();
   }
 
+  function _applyFpsCounter(enabled) {
+    if (typeof FPSCounter !== 'undefined' && typeof FPSCounter.setEnabled === 'function') {
+      FPSCounter.setEnabled(enabled);
+    }
+  }
+
   function _applyAll() {
     _applyShadow(_state.shadowEnabled);
     _applyPixelRatio(_state.pixelRatioLevel);
+    _applyFpsCounter(_state.fpsCounterEnabled);
   }
 
   // ── Build UI ─────────────────────────────────
@@ -347,6 +355,16 @@ const Settings = (() => {
       _applyPixelRatio(val);
     });
     panel.appendChild(pixelRatioRow);
+
+    const divider4 = document.createElement('div');
+    divider4.className = 'st-divider';
+    panel.appendChild(divider4);
+
+    // — FPS Counter toggle —
+    const fpsRow = _buildToggleRow('แสดง FPS', 'fpsCounterEnabled', (val) => {
+      _applyFpsCounter(val);
+    });
+    panel.appendChild(fpsRow);
 
     document.body.appendChild(panel);
     _panel = panel;

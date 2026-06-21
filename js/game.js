@@ -65,8 +65,12 @@ document.addEventListener('player-attack', () => {
 
 function animate() {
   requestAnimationFrame(animate);
-  const dt = Math.min(clock.getDelta(), 0.05);
+  const rawDt = clock.getDelta();
+  const dt = Math.min(rawDt, 0.05);
   elapsedTime += dt;
+
+  // ── FPS Counter: ใช้ค่า delta ดิบ (ไม่ clamp) ให้สะท้อนเฟรมเรตจริง ไม่ใช่ค่าที่ถูกจำกัดเพื่อ gameplay ──
+  if (typeof FPSCounter !== 'undefined') FPSCounter.update(rawDt);
 
   let kx = 0, ky = 0;
   if (keys['KeyW'] || keys['ArrowUp'])    ky = -1;
@@ -226,6 +230,7 @@ function animate() {
 Inventory.init();
 Hotbar.init();
 Settings.init();
+if (typeof FPSCounter !== 'undefined') FPSCounter.init();
 
 // ── โหลด stat ผู้เล่นจาก DataService ตอนเริ่มเกม ──
 Player.load();

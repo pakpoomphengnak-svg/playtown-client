@@ -19,7 +19,7 @@ const GARAGE_LOCATIONS = [
     store:    { x: GARAGE_STORE.x,    z: GARAGE_STORE.z    },
   },
     // rebel
-    { retrieve: { x: -100, z: -200 }, store: { x: -80, z: -200 } },
+    { retrieve: { x: -320, z: -340 }, store: { x: -300, z: -340 } },
     // appleFarm
     { retrieve: { x: 170, z: -40 }, store: { x: 190, z: -40 } },
     // grapeFarm
