@@ -48,6 +48,7 @@ const RemoteVehicles = (() => {
     v.isRemote = true; // กัน updateVehicle()/checkNearVehicle() ของระบบเดิมไปยุ่งกับรถนี้โดยไม่ตั้งใจ
     v.driven = !!data.driverId; // ถ้ามีคนขับอยู่แล้วตอน spawn (เช่น currentVehicles ตอน join) กันคนอื่นเข้าซ้อน
     v.locked = !!data.locked; // sync สถานะล็อกล่าสุดจาก server ตอน spawn
+    v.passengerIds = Array.isArray(data.passengerIds) ? data.passengerIds : []; // sync ผู้โดยสารล่าสุดจาก server ตอน spawn
     if (typeof data.fuel === 'number') v.fuel = data.fuel;
 
     if (data.colorHex && typeof applyVehicleColor === 'function') {

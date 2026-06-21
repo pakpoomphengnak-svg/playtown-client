@@ -22,6 +22,7 @@ const SocketClient = (() => {
     onVehicleColorChanged: null, // ({plate, colorHex}) → มีคนเปลี่ยนสีรถ
     onVehicleLockChanged:  null, // ({plate, locked}) → มีคนล็อก/ปลดล็อกรถ
     onVehicleDriverChanged:null, // ({plate, driverId, x?, z?, rotY?}) → มีคนขึ้น/ลงรถ
+    onVehiclePassengerChanged: null, // ({plate, passengerIds, rejected?, reason?, evicted?}) → ผู้โดยสารขึ้น/ลง/ถูกเชิญออก
     onVehicleMoved:        null, // ({plate, x, z, rotY, speed, fuel}) → รถที่มีคนขับอยู่ขยับ
     onPlayerHit:            null, // ({attackerId, damage}) → เราโดนตี (server เป็นคนตัดสินและส่งมา)
     onPlayerHpChanged:      null, // ({id, hp}) → HP ผู้เล่นคนอื่นเปลี่ยน (ไว้ sync ของจริงถ้า server ส่งมา)
@@ -113,6 +114,10 @@ const SocketClient = (() => {
       if (_handlers.onVehicleDriverChanged) _handlers.onVehicleDriverChanged(data);
     });
 
+    socket.on('vehiclePassengerChanged', (data) => {
+      if (_handlers.onVehiclePassengerChanged) _handlers.onVehiclePassengerChanged(data);
+    });
+
     socket.on('vehicleMoved', (data) => {
       if (_handlers.onVehicleMoved) _handlers.onVehicleMoved(data);
     });
@@ -187,6 +192,18 @@ const SocketClient = (() => {
     socket.emit('vehicleExit', { plate, x, z, rotY });
   }
 
+  // ── Vehicle: ขึ้นรถเป็นผู้โดยสาร (ไม่ใช่คนขับ) ──
+  function vehiclePassengerEnter(plate) {
+    if (!socket || !socket.connected) return;
+    socket.emit('vehiclePassengerEnter', { plate });
+  }
+
+  // ── Vehicle: ลงจากรถ (ผู้โดยสาร) ────────────
+  function vehiclePassengerExit(plate) {
+    if (!socket || !socket.connected) return;
+    socket.emit('vehiclePassengerExit', { plate });
+  }
+
   // ── Vehicle: ส่งตำแหน่งรถระหว่างขับ (throttled เหมือน sendPosition) ──
   function sendVehiclePosition(plate, x, z, rotY, speed, fuel) {
     if (!socket || !socket.connected) return;
@@ -218,6 +235,7 @@ const SocketClient = (() => {
   return {
     connect, joinGame, sendPosition, on, getSelfId, isConnected,
     vehicleRetrieve, vehicleStore, vehicleColor, vehicleLock, vehicleEnter, vehicleExit, sendVehiclePosition,
+    vehiclePassengerEnter, vehiclePassengerExit,
     attackPlayer, playerRespawn,
   };
 

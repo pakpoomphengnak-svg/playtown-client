@@ -572,6 +572,13 @@ SafeBox.load();
       entry.count = available - moveQty;
     }
 
+    // ── ถ้าไอเทมที่เพิ่งเก็บลงตู้เซฟคืออาวุธที่กำลังถืออยู่ และไม่เหลือชิ้นนี้ในกระเป๋าแล้ว
+    //    ต้องถอดอาวุธออกด้วย ไม่งั้นผู้เล่นจะยังถืออาวุธค้างอยู่ (ทั้งที่อาวุธไม่อยู่ในกระเป๋าแล้ว)
+    if (typeof WeaponSystem !== 'undefined' && WeaponSystem.isEquipped(entry.id)) {
+      const stillHasInInv = (Inventory._slots || []).some(s => s && s.id === entry.id && !s.meta);
+      if (!stillHasInInv) WeaponSystem.unequip();
+    }
+
     if (typeof Inventory._save === 'function') Inventory._save();
     if (typeof Inventory._renderUI === 'function') Inventory._renderUI();
     if (typeof Hotbar !== 'undefined' && typeof Hotbar._render === 'function') Hotbar._render();

@@ -93,6 +93,9 @@ function animate() {
       updateVehicle(activeVehicle, dt, vmx, vmy, isSprinting);
     }
     charGroup.visible = false;
+  } else if (localPassengerOf) {
+    if (typeof updatePassenger === 'function') updatePassenger();
+    charGroup.visible = false;
   } else if (isMoving && !window.isCollecting) {
     const angle = camYaw + Math.atan2(mx, -my) + Math.PI;
     const len   = Math.sqrt(mx * mx + my * my);
@@ -150,7 +153,8 @@ function animate() {
 
   // ── กล้อง ───────────────────────────────────
   const activeV   = vehicles.find(v => v.localDriven);
-  const camTarget = isInVehicle && activeV ? activeV.mesh : charGroup;
+  const ridingV   = isInVehicle ? activeV : localPassengerOf;
+  const camTarget = ridingV ? ridingV.mesh : charGroup;
 
   const cx = camTarget.position.x + Math.sin(camYaw) * Math.cos(camPitch) * camDist;
   const cy = camTarget.position.y + 1.4 + Math.sin(camPitch) * camDist;
@@ -170,13 +174,14 @@ function animate() {
     if (_posSendTimer >= POS_SEND_INTERVAL) {
       _posSendTimer = 0;
       const activeVehicleForPos = vehicles.find(v => v.localDriven);
+      const ridingVehicleForPos = isInVehicle ? activeVehicleForPos : localPassengerOf; // คันที่เรา "อยู่ใน" ไม่ว่าขับเองหรือนั่งเป็นผู้โดยสาร
       const equippedWeapon = (typeof WeaponSystem !== 'undefined') ? WeaponSystem.getEquipped() : null;
       SocketClient.sendPosition(
         Player.x,
         Player.z,
         Player.rotY,
-        isInVehicle,
-        activeVehicleForPos ? activeVehicleForPos.mesh.uuid : null,
+        !!ridingVehicleForPos,
+        ridingVehicleForPos ? ridingVehicleForPos.mesh.uuid : null,
         actualSprinting,
         _attackToSend,
         equippedWeapon ? equippedWeapon.id : null
@@ -267,6 +272,10 @@ if (typeof SocketClient !== 'undefined') {
 
   SocketClient.on('onVehicleDriverChanged', (data) => {
     if (typeof RemoteVehicles !== 'undefined') RemoteVehicles.setDriver(data);
+  });
+
+  SocketClient.on('onVehiclePassengerChanged', (data) => {
+    if (typeof syncVehiclePassengers === 'function') syncVehiclePassengers(data);
   });
 
   SocketClient.on('onVehicleMoved', (data) => {

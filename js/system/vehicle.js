@@ -9,6 +9,10 @@ let isInVehicle   = false;
 let nearbyVehicle = null;
 const ENTER_DIST  = 2.8;
 
+// ── สถานะผู้โดยสาร (เรานั่งรถคันนี้อยู่ ไม่ใช่คนขับ) ──
+// localPassengerOf: object รถ (จาก vehicles[]) ที่เรานั่งอยู่ หรือ null ถ้าไม่ได้นั่ง
+let localPassengerOf = null;
+
 // ── ตัวคูณแปลงหน่วย: เกม 1 หน่วย/วินาที = 1 เมตร/วินาที ──
 // ปรับค่านี้ที่เดียว มีผลกับการแปลงความเร็วของรถทุกคันทั้งระบบ
 // (ใช้แปลง config.topSpeedKmh ของแต่ละรถ → maxSpeed หน่วยภายใน และใช้โชว์ค่าบน speedometer)
@@ -87,6 +91,8 @@ function makeVehicle(type, x, z, rotY = 0) {
     fuel:            config.fuel            ?? 100,   // น้ำมันปัจจุบัน
     maxFuel:         config.maxFuel         ?? 100,   // น้ำมันสูงสุด
     fuelConsumption: config.fuelConsumption ?? 1.0,   // อัตรากินน้ำมัน (หน่วย/วินาที ตอนขับปกติ)
+    seats:           config.seats           ?? 4,     // จำนวนที่นั่ง (รวมคนขับ) — กำหนดต่อรถใน vehicle/*.js
+    passengerIds:    [],                               // socket id ของผู้โดยสารปัจจุบัน (sync จาก server ผ่าน vehiclePassengerChanged)
   };
   vehicles.push(v);
   return v;
@@ -144,6 +150,8 @@ function makeVehiclePanel() {
     if (isInVehicle) {
       const av = vehicles.find(v => v.localDriven);
       if (av) exitVehicle(av);
+    } else if (localPassengerOf) {
+      exitAsPassenger(localPassengerOf);
     } else if (nearbyVehicle) {
       if (nearbyVehicle.locked) {
         if (typeof Notification !== 'undefined') {
@@ -151,7 +159,11 @@ function makeVehiclePanel() {
         }
         return;
       }
-      enterVehicle(nearbyVehicle);
+      if (nearbyVehicle.driven) {
+        enterAsPassenger(nearbyVehicle);
+      } else {
+        enterVehicle(nearbyVehicle);
+      }
     }
   };
   enterDiv.addEventListener('touchstart', e => { e.preventDefault(); e.stopPropagation(); handleEnterPress(); }, { passive: false });
@@ -174,7 +186,7 @@ function makeVehiclePanel() {
   lockDiv.textContent = '🔓';
 
   const handleLockPress = () => {
-    const v = (isInVehicle ? vehicles.find(veh => veh.localDriven) : nearbyVehicle);
+    const v = (isInVehicle ? vehicles.find(veh => veh.localDriven) : (localPassengerOf || nearbyVehicle));
     toggleVehicleLock(v);
   };
   lockDiv.addEventListener('touchstart', e => { e.preventDefault(); e.stopPropagation(); handleLockPress(); }, { passive: false });
@@ -230,7 +242,7 @@ function toggleVehicleLock(v) {
 
 // ── อัปเดตหน้าตาปุ่มล็อก (ไอคอน/สี) ให้ตรงกับ state ปัจจุบันของรถเป้าหมาย ──
 function updateVehicleLockUI() {
-  const v = (isInVehicle ? vehicles.find(veh => veh.localDriven) : nearbyVehicle);
+  const v = (isInVehicle ? vehicles.find(veh => veh.localDriven) : (localPassengerOf || nearbyVehicle));
   if (!v || !v.plate || !Garage._hasKeyFor(v.plate)) {
     vehicleLockBtnEl.style.display = 'none';
     return;
@@ -281,6 +293,16 @@ function makeSpeedometer() {
     marginTop:  '2px',
   });
   unitEl.textContent = 'KM/H';
+
+  // ── ป้ายจำนวนที่นั่ง ──
+  const seatsEl = document.createElement('div');
+  seatsEl.id = 'speed-seats';
+  Object.assign(seatsEl.style, {
+    fontSize:   '9px',
+    color:      '#FDF6E3',
+    marginTop:  '3px',
+  });
+  seatsEl.textContent = '💺 -/-';
 
   // ── หลอดน้ำมัน ──
   const fuelWrap = document.createElement('div');
@@ -334,19 +356,29 @@ function makeSpeedometer() {
 
   el.appendChild(valEl);
   el.appendChild(unitEl);
+  el.appendChild(seatsEl);
   el.appendChild(fuelWrap);
   document.body.appendChild(el);
 
   // self-update loop
   setInterval(() => {
     const driven = vehicles.find(v => v.localDriven);
-    const spd    = driven ? Math.round(Math.abs(driven.speed) * MS_TO_KMH) : 0;
+    const riding = driven || localPassengerOf; // รถที่เรา "อยู่ใน" ไม่ว่าจะขับเองหรือนั่งเป็นผู้โดยสาร
+
+    const spd = driven ? Math.round(Math.abs(driven.speed) * MS_TO_KMH) : 0;
     valEl.textContent = spd;
-    el.style.opacity  = driven ? '1' : '0';
+    el.style.opacity   = riding ? '1' : '0';
+
+    // อัปเดตป้ายที่นั่ง (จำนวนคนในรถจริง/จำนวนที่นั่งทั้งหมด — sync จาก server ผ่าน passengerIds)
+    if (riding) {
+      const total    = riding.seats ?? 4;
+      const occupied = 1 + (riding.passengerIds ? riding.passengerIds.length : 0);
+      seatsEl.textContent = `💺 ${occupied}/${total}`;
+    }
 
     // อัปเดตหลอดน้ำมัน
-    if (driven) {
-      const pct = Math.max(0, driven.fuel / driven.maxFuel);
+    if (riding) {
+      const pct = Math.max(0, riding.fuel / riding.maxFuel);
       fuelBar.style.width = (pct * 100).toFixed(1) + '%';
       fuelPct.textContent = Math.ceil(pct * 100) + '%';
       // เปลี่ยนสีตามระดับ: เขียว → เหลือง → แดง
@@ -523,6 +555,99 @@ function exitVehicle(v, force) {
   console.log('[Vehicle] ลงรถแล้ว');
 }
 
+// ── ขึ้นรถเป็นผู้โดยสาร (ไม่ใช่คนขับ) ──────────────
+// ใช้ตอนรถคันนั้นมีคนขับอยู่แล้ว แต่ยังมีที่นั่งว่าง — server เป็นผู้ตัดสินสุดท้ายว่าขึ้นได้จริงไหม
+// (กันที่นั่งเต็มจากการแย่งขึ้นพร้อมกันหลาย client) ฝั่งนี้ทำ optimistic update ไปก่อน
+// แล้วรอ vehiclePassengerChanged ยืนยัน/ปฏิเสธกลับมา
+function enterAsPassenger(v) {
+  if (isInVehicle || localPassengerOf) return;
+  if (!v || !v.driven || !v.plate) return; // นั่งได้เฉพาะรถที่มีคนขับอยู่แล้วเท่านั้น
+
+  const occupied = 1 + (v.passengerIds ? v.passengerIds.length : 0);
+  if (occupied >= (v.seats ?? 4)) {
+    if (typeof Notification !== 'undefined') {
+      Notification.show('ที่นั่งเต็มแล้ว', { icon: '💺', color: '#f44336' });
+    }
+    return;
+  }
+
+  if (typeof SocketClient === 'undefined' || !SocketClient.isConnected()) {
+    if (typeof Notification !== 'undefined') {
+      Notification.show('ขึ้นเป็นผู้โดยสารได้เฉพาะตอนออนไลน์', { icon: '⚠️', color: '#f44336' });
+    }
+    return;
+  }
+
+  localPassengerOf = v;
+  nearbyVehicle = null;
+  charGroup.visible            = false;
+  vehiclePanelEl.style.display = 'flex';
+  updateVehicleLockUI();
+  document.getElementById('joystick-zone').style.display = 'none';
+  document.getElementById('sprint-btn').style.display    = 'none';
+  document.getElementById('hotbar-bar').style.display    = 'none';
+  document.getElementById('attack-btn').style.display    = 'none';
+
+  SocketClient.vehiclePassengerEnter(v.plate);
+  console.log('[Vehicle] ขึ้นเป็นผู้โดยสารแล้ว');
+}
+
+// ── ลงจากรถ (ผู้โดยสาร) ─────────────────────────────
+// silent=true → ไม่ขยับตัวละครออกมา/ไม่แจ้ง server (ใช้ตอนรถถูกเก็บ/คนขับลงไปแล้ว server สั่งเอาออกมาให้เอง)
+function exitAsPassenger(v, silent) {
+  if (!localPassengerOf) return;
+  const veh = v || localPassengerOf;
+  localPassengerOf = null;
+
+  if (!silent) {
+    Player.x = veh.mesh.position.x + Math.cos(veh.rotY) * 2.2;
+    Player.z = veh.mesh.position.z - Math.sin(veh.rotY) * 2.2;
+  }
+  charGroup.position.set(Player.x, 0.02, Player.z);
+  charGroup.visible            = true;
+  vehiclePanelEl.style.display = 'none';
+  document.getElementById('joystick-zone').style.display = 'block';
+  document.getElementById('sprint-btn').style.display    = 'flex';
+  document.getElementById('hotbar-bar').style.display    = 'flex';
+  document.getElementById('attack-btn').style.display    = 'flex';
+
+  if (!silent && veh.plate && typeof SocketClient !== 'undefined' && SocketClient.isConnected()) {
+    SocketClient.vehiclePassengerExit(veh.plate);
+  }
+
+  console.log('[Vehicle] ลงจากรถ (ผู้โดยสาร) แล้ว');
+}
+
+// ── sync จำนวน/รายชื่อผู้โดยสารจาก server เข้า vehicle object ──
+// เรียกจาก game.js ตอนรับ event onVehiclePassengerChanged
+function syncVehiclePassengers(data) {
+  if (!data || !data.plate) return;
+  const v = vehicles.find(veh => veh.plate === data.plate);
+  if (!v) return;
+  v.passengerIds = Array.isArray(data.passengerIds) ? data.passengerIds : [];
+
+  const selfId = (typeof SocketClient !== 'undefined') ? SocketClient.getSelfId() : null;
+
+  // ── เราเองถูกปฏิเสธ (ที่นั่งเต็มไปแล้วตอน server เช็คซ้ำ) — rollback optimistic update ──
+  if (data.rejected) {
+    if (localPassengerOf === v) {
+      exitAsPassenger(v, true);
+    }
+    if (typeof Notification !== 'undefined' && data.reason === 'full') {
+      Notification.show('ที่นั่งเต็มแล้ว', { icon: '💺', color: '#f44336' });
+    }
+    return;
+  }
+
+  // ── เราเองถูกเชิญลง (คนขับลงรถ/รถถูกเก็บ/หลุดการเชื่อมต่อ) — เด้งออกมาจากรถให้ ──
+  if (data.evicted && localPassengerOf === v && selfId && !v.passengerIds.includes(selfId)) {
+    exitAsPassenger(v, false);
+    if (typeof Notification !== 'undefined') {
+      Notification.show('คุณถูกเชิญลงจากรถ', { icon: '🚪', color: '#FFC107' });
+    }
+  }
+}
+
 // ── update (เรียกจาก game loop) ─────────────────
 function updateVehicle(v, dt, mx, my, isSprinting) {
   if (!v.driven) return;
@@ -599,12 +724,28 @@ function updateVehicle(v, dt, mx, my, isSprinting) {
   Player.x = v.x; Player.z = v.z;
 }
 
+// ── update ผู้โดยสาร (เรียกจาก game loop ทุกเฟรม) ──
+// ผู้โดยสารไม่ได้ขับ แค่ "ติด" ไปกับตำแหน่งรถ (รถคันที่นั่งอาจเป็นของเราเองหรือคนอื่นขับ
+// ตำแหน่งจริงของรถถูกอัปเดตจาก updateVehicle()/RemoteVehicles.update() ที่อื่นอยู่แล้ว)
+function updatePassenger() {
+  if (!localPassengerOf) return;
+  const v = localPassengerOf;
+  Player.x = v.mesh.position.x;
+  Player.z = v.mesh.position.z;
+  Player.rotY = v.rotY;
+}
+
 // ── ตรวจระยะใกล้รถ ─────────────────────────────
 function checkNearVehicle() {
-  if (isInVehicle) { return; } // ปุ่มยังโชว์อยู่เป็นปุ่ม "ลงรถ" ไม่ต้องไปแก้ display ที่นี่
+  if (isInVehicle || localPassengerOf) { return; } // ปุ่มยังโชว์อยู่เป็นปุ่ม "ลงรถ" ไม่ต้องไปแก้ display ที่นี่
   let found = null;
   for (const v of vehicles) {
-    if (v.driven) continue; // คันนี้มีคนขับอยู่แล้ว (ตัวเองหรือคนอื่นผ่าน RemoteVehicles) — เข้าไม่ได้
+    if (v.driven) {
+      // ── มีคนขับอยู่แล้ว — เข้าได้เฉพาะถ้ายังมีที่นั่งว่างสำหรับผู้โดยสาร ──
+      const occupied = 1 + (v.passengerIds ? v.passengerIds.length : 0);
+      if (occupied >= (v.seats ?? 4)) continue;
+      if (!v.plate) continue; // รถที่ขับอยู่ต้องมี plate (sync ผ่าน server) ถึงจะนั่งรวมได้
+    }
     const dx = Player.x - v.mesh.position.x;
     const dz = Player.z - v.mesh.position.z;
     if (Math.sqrt(dx * dx + dz * dz) <= ENTER_DIST) { found = v; break; }
@@ -646,6 +787,8 @@ window.addEventListener('keydown', e => {
   if (isInVehicle) {
     const av = vehicles.find(v => v.localDriven);
     if (av) exitVehicle(av);
+  } else if (localPassengerOf) {
+    exitAsPassenger(localPassengerOf);
   } else if (nearbyVehicle) {
     if (nearbyVehicle.locked) {
       if (typeof Notification !== 'undefined') {
@@ -653,14 +796,18 @@ window.addEventListener('keydown', e => {
       }
       return;
     }
-    enterVehicle(nearbyVehicle);
+    if (nearbyVehicle.driven) {
+      enterAsPassenger(nearbyVehicle);
+    } else {
+      enterVehicle(nearbyVehicle);
+    }
   }
 });
 
 // ── keyboard L (ล็อก/ปลดล็อกรถ) ─────────────────
 window.addEventListener('keydown', e => {
   if (e.code !== 'KeyL') return;
-  const v = isInVehicle ? vehicles.find(veh => veh.localDriven) : nearbyVehicle;
+  const v = isInVehicle ? vehicles.find(veh => veh.localDriven) : (localPassengerOf || nearbyVehicle);
   toggleVehicleLock(v);
 });
 
