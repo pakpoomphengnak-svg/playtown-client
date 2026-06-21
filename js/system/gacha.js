@@ -30,37 +30,51 @@ const GACHA_POOLS = {
     },
     {
         itemId: 'dirty_cash',
-        minAmount: 10,
-        maxAmount: 50,
+        minAmount: 50,
+        maxAmount: 250,
         weight: 7,
+        rarity: 'rare'
+    },
+    {
+        itemId: 'armor',
+        minAmount: 1,
+        maxAmount: 1,
+        weight: 2.5,
+        rarity: 'rare'
+    },
+    {
+        itemId: 'bandage',
+        minAmount: 1,
+        maxAmount: 1,
+        weight: 2.5, 
         rarity: 'rare'
     },
     {
         itemId: 'cement',
         minAmount: 1,
         maxAmount: 1,
-        weight: 5,
+        weight: 2.5,
         rarity: 'rare'
     },
     {
         itemId: 'wire',
         minAmount: 1,
         maxAmount: 1,
-        weight: 5, 
+        weight: 2.5, 
         rarity: 'rare'
     },
     {
         itemId: 'diamond',
         minAmount: 1,
         maxAmount: 1,
-        weight: 2.9,
+        weight: 2.95,
         rarity: 'epic'
     },
     {
         itemId: 'r32_box',
         minAmount: 1,
         maxAmount: 1,
-        weight: 0.1,
+        weight: 0.05,
         rarity: 'legendary'
     },
   ],
