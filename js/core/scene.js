@@ -2,8 +2,23 @@
 // CORE: SCENE SETUP
 // renderer, scene, camera, fog — สิ่งที่ต้องมีก่อนสร้างอะไรอื่น
 // ─────────────────────────────────────────────
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+// อ่านค่า antialias / pixelRatio จาก localStorage (ตั้งค่าจาก Settings panel)
+// ต้องอ่านตรงนี้เพราะ renderer ถูกสร้างก่อน Settings module init
+let _savedSettings = {};
+try {
+  _savedSettings = JSON.parse(localStorage.getItem('playtown_settings') || '{}');
+} catch (e) { /* ignore */ }
+
+const _antialiasEnabled = _savedSettings.antialiasEnabled !== undefined ? _savedSettings.antialiasEnabled : true;
+const _pixelRatioLevel = _savedSettings.pixelRatioLevel || 'high';
+const _pixelRatioMap = {
+  low: 1,
+  medium: Math.min(window.devicePixelRatio || 1, 1.5),
+  high: Math.min(window.devicePixelRatio || 1, 2),
+};
+
+const renderer = new THREE.WebGLRenderer({ antialias: _antialiasEnabled });
+renderer.setPixelRatio(_pixelRatioMap[_pixelRatioLevel] || _pixelRatioMap.high);
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;

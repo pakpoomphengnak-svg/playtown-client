@@ -660,8 +660,8 @@ function updateVehicle(v, dt, mx, my, isSprinting) {
     if (v.speed < 0) v.speed = Math.min(0, v.speed + v.friction * dt * 2);
     // เคลื่อนตามแรงเฉื่อยที่เหลือ (ไม่รับ input)
     if (Math.abs(v.speed) > 0.01) {
-      const nx2 = Math.max(-494, Math.min(494, v.mesh.position.x + Math.sin(v.rotY) * v.speed * dt));
-      const nz2 = Math.max(-494, Math.min(494, v.mesh.position.z + Math.cos(v.rotY) * v.speed * dt));
+      const nx2 = Math.max(-990, Math.min(990, v.mesh.position.x + Math.sin(v.rotY) * v.speed * dt));
+      const nz2 = Math.max(-990, Math.min(990, v.mesh.position.z + Math.cos(v.rotY) * v.speed * dt));
       if (!checkVehicleCollision(nx2, v.mesh.position.z, v.colEntry)) v.mesh.position.x = nx2;
       if (!checkVehicleCollision(v.mesh.position.x, nz2, v.colEntry)) v.mesh.position.z = nz2;
       v.mesh.position.y = getGroundY(v.mesh.position.x, v.mesh.position.z);
@@ -691,8 +691,8 @@ function updateVehicle(v, dt, mx, my, isSprinting) {
   }
   v.mesh.rotation.y = v.rotY;
 
-  const nx = Math.max(-494, Math.min(494, v.mesh.position.x + Math.sin(v.rotY) * v.speed * dt));
-  const nz = Math.max(-494, Math.min(494, v.mesh.position.z + Math.cos(v.rotY) * v.speed * dt));
+  const nx = Math.max(-990, Math.min(990, v.mesh.position.x + Math.sin(v.rotY) * v.speed * dt));
+  const nz = Math.max(-990, Math.min(990, v.mesh.position.z + Math.cos(v.rotY) * v.speed * dt));
 
   // ── เช็คชนกำแพง/รั้ว/อาคาร/รถคันอื่น ก่อนขยับจริง (แยกแกน X/Z เหมือนผู้เล่น) ──
   let movedX = true, movedZ = true;

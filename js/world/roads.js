@@ -15,11 +15,19 @@ const roadMat = new THREE.MeshLambertMaterial({ color: ROAD_COLOR });
 const curbMat = new THREE.MeshBasicMaterial({ color: CURB_COLOR });
 const markMat = new THREE.MeshBasicMaterial({ color: MARK_COLOR });
 
+// ── Registry: เก็บพารามิเตอร์ถนน/ทางแยกทุกเส้นที่สร้างจริง ──
+// ใช้โดย minimap.js เพื่อวาดถนนตามตำแหน่งจริง โดยไม่ต้อง hardcode ซ้ำ
+window.ROAD_SEGMENTS = [];
+window.ROAD_INTERSECTIONS = [];
+
 // ── สร้างถนน (รองรับความกว้างที่กำหนดเอง) ──
 function makeRoad(direction, center, from, to, width) {
   width = width || 8;
   const length = to - from;
   const mid    = (from + to) / 2;
+
+  // บันทึกพารามิเตอร์จริงไว้ให้ minimap.js อ่าน (ตำแหน่งจะตรงเสมอแม้แก้ที่นี่)
+  window.ROAD_SEGMENTS.push([direction, center, from, to, width]);
 
   const W = direction === 'X' ? length : width;
   const D = direction === 'X' ? width  : length;
@@ -56,6 +64,10 @@ function makeRoad(direction, center, from, to, width) {
 // ── ทางแยก (รองรับความกว้างที่กำหนดเอง) ──
 function makeIntersection(cx, cz, width) {
   width = width || 8;
+
+  // บันทึกพารามิเตอร์จริงไว้ให้ minimap.js อ่าน
+  window.ROAD_INTERSECTIONS.push([cx, cz, width]);
+
   const inter = new THREE.Mesh(new THREE.BoxGeometry(width, ROAD_H, width), roadMat);
   inter.position.set(cx, ROAD_H / 2, cz);
   inter.receiveShadow = true;

@@ -7,49 +7,25 @@
   // ════════════════════════════════════════════
   //  WORLD CONFIG  (ตรงกับ ground.js 100%)
   // ════════════════════════════════════════════
-  // ground = PlaneGeometry(400,400) → -200..200
-  // beach  = PlaneGeometry(450,450) → -225..225
-  const WX0 = -225, WX1 = 225, WW = WX1 - WX0;
-  const WZ0 = -225, WZ1 = 225, WH = WZ1 - WZ0;
+  // ground = PlaneGeometry(800,800) → -400..400
+  // beach  = PlaneGeometry(900,900) → -450..450
+  const WX0 = -450, WX1 = 450, WW = WX1 - WX0;
+  const WZ0 = -450, WZ1 = 450, WH = WZ1 - WZ0;
 
   function worldToNorm(wx, wz) {
     return { nx: (wx - WX0) / WW, ny: (wz - WZ0) / WH };
   }
 
   // ════════════════════════════════════════════
-  //  ROAD DATA — คัดลอกตรงจาก roads.js
-  //  [dir, center, from, to, width]
+  //  ROAD DATA — อ่านสดจาก roads.js (window.ROAD_SEGMENTS / window.ROAD_INTERSECTIONS)
+  //  ย้าย/แก้ถนนใน roads.js แล้ว minimap จะตามอัตโนมัติ ไม่ต้องแก้ไฟล์นี้
   // ════════════════════════════════════════════
-  const ROADS = [
-    ['X',  -30, -200, 200, 16],  // Highway
-    ['Z',  -90, -200, 200, 12],  // ถนนใหญ่ A
-    ['Z',   20, -200, 200, 12],  // ถนนใหญ่ B
-    ['Z',   56, -200, 200, 12],  // ถนนใหญ่ C
-    ['X', -110, -200, 200, 12],  // ถนนใหญ่ D
-    ['X',  100, -200, 200, 12],  // ถนนใหญ่ E
-    ['Z',    0, -200, 200,  8],  // ซอย F
-    ['Z',  130, -200, 200,  8],  // ซอย G
-  ];
-
-  // ทางแยกจาก makeIntersection() ใน roads.js  [cx, cz, width]
-  const INTERSECTIONS = [
-    [-90,-30,16],[20,-30,16],[56,-30,16],[130,-30,16],
-    [-90,-110,12],[20,-110,12],[56,-110,12],[130,-110,12],
-    [-90,100,12],[20,100,12],[56,100,12],[130,100,12],
-    [20,-40,12],[56,-14,12],
-    [0,-110,8],[0,-30,8],[0,100,8],
-  ];
-
-  // ════════════════════════════════════════════
-  //  ZONE DATA — district shading (สีอ่อนๆ ใต้แผนที่)
-  // ════════════════════════════════════════════
-  const ZONES = [
-    { label: 'Downtown',    x1: -90,  z1: -110, x2:  56, z2:  100, color: 'rgba(80,130,200,0.13)' },
-    { label: 'North Side',  x1: -90,  z1: -230, x2: 200, z2: -110, color: 'rgba(100,160,100,0.13)' },
-    { label: 'East Side',   x1:  56,  z1: -110, x2: 220, z2:  100, color: 'rgba(200,150,60,0.13)'  },
-    { label: 'South Side',  x1: -90,  z1:  100, x2: 220, z2:  220, color: 'rgba(160,100,180,0.13)' },
-    { label: 'West Side',   x1: -220, z1: -230, x2: -90, z2:  220, color: 'rgba(80,160,160,0.13)'  },
-  ];
+  function getRoads() {
+    return (typeof window.ROAD_SEGMENTS !== 'undefined') ? window.ROAD_SEGMENTS : [];
+  }
+  function getIntersections() {
+    return (typeof window.ROAD_INTERSECTIONS !== 'undefined') ? window.ROAD_INTERSECTIONS : [];
+  }
 
   // ════════════════════════════════════════════
   //  BLIP (สถานที่) — พิกัดจาก building/*.js
@@ -100,17 +76,17 @@
     ctx.fillStyle = '#0a1628';
     ctx.fillRect(0, 0, S, S);
 
-    // ── ชายหาด beach (PlaneGeometry 450×450 → -225..225, สีจาก beachMat 0xe8c97a) ──
-    const bch = worldToNorm(-225, -225);
-    const bch2 = worldToNorm(225, 225);
+    // ── ชายหาด beach (PlaneGeometry 900×900 → -450..450, สีจาก beachMat 0xe8c97a) ──
+    const bch = worldToNorm(-450, -450);
+    const bch2 = worldToNorm(450, 450);
     const { px: bx1, py: by1 } = n2px(bch.nx, bch.ny);
     const { px: bx2, py: by2 } = n2px(bch2.nx, bch2.ny);
     ctx.fillStyle = '#c8c4b0';
     ctx.fillRect(Math.min(bx1,bx2), Math.min(by1,by2), Math.abs(bx2-bx1), Math.abs(by2-by1));
 
-    // ── เกาะ/หญ้า (PlaneGeometry 400×400 → -200..200, สีจาก groundMat 0x388e3c) ──
-    const { nx: gx1, ny: gz1 } = worldToNorm(-200, -200);
-    const { nx: gx2, ny: gz2 } = worldToNorm(200, 200);
+    // ── เกาะ/หญ้า (PlaneGeometry 800×800 → -400..400, สีจาก groundMat 0x388e3c) ──
+    const { nx: gx1, ny: gz1 } = worldToNorm(-400, -400);
+    const { nx: gx2, ny: gz2 } = worldToNorm(400, 400);
     const { px: gpx1, py: gpy1 } = n2px(gx1, gz1);
     const { px: gpx2, py: gpy2 } = n2px(gx2, gz2);
     ctx.fillStyle = '#0f1a0f';
@@ -123,7 +99,7 @@
   // วาดถนนทุกเส้น + ทางแยก + เส้นกลางถนน
   function drawRoads(ctx, S, n2px, scaleFactor) {
     // scaleFactor: mini=half*2/WW, full=S/WW
-    ROADS.forEach(([dir, center, from, to, rw]) => {
+    getRoads().forEach(([dir, center, from, to, rw]) => {
       let p1n, p2n, roadPxW;
       if (dir === 'X') {
         p1n = worldToNorm(from, center); p2n = worldToNorm(to, center);
@@ -143,7 +119,7 @@
     });
 
     // ── ทางแยก (สี่เหลี่ยมทับทางแยก ปิดรอยต่อ) ──
-    INTERSECTIONS.forEach(([cx, cz, rw]) => {
+    getIntersections().forEach(([cx, cz, rw]) => {
       const pw = (rw / WW) * scaleFactor;
       const { nx: ix, ny: iz } = worldToNorm(cx - rw/2, cz - rw/2);
       const { nx: ix2, ny: iz2 } = worldToNorm(cx + rw/2, cz + rw/2);
@@ -328,20 +304,6 @@
 
     // ── ถนน + ทางแยก ──
     drawRoads(ctx, S, n2px, S);
-
-    // ── zone labels (เบามาก) ──
-    ZONES.forEach(z => {
-      const cx = (worldToNorm(z.x1, z.z1).nx + worldToNorm(z.x2, z.z2).nx) / 2 * S;
-      const cy = (worldToNorm(z.x1, z.z1).ny + worldToNorm(z.x2, z.z2).ny) / 2 * S;
-      ctx.save();
-      ctx.font = `bold ${Math.max(9, S * 0.016)}px sans-serif`;
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillStyle = 'rgba(255,255,255,0.14)';
-      ctx.letterSpacing = '2px';
-      ctx.fillText(z.label.toUpperCase(), cx, cy);
-      ctx.letterSpacing = '0px';
-      ctx.restore();
-    });
 
     // ── blips ──
     const blipR = Math.max(6, S * 0.014);

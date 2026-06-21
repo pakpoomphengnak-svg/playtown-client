@@ -53,14 +53,14 @@ const GACHA_POOLS = {
         itemId: 'diamond',
         minAmount: 1,
         maxAmount: 1,
-        weight: 2.75,
+        weight: 2.9,
         rarity: 'epic'
     },
     {
         itemId: 'r32_box',
         minAmount: 1,
         maxAmount: 1,
-        weight: 0.25,
+        weight: 0.1,
         rarity: 'legendary'
     },
   ],

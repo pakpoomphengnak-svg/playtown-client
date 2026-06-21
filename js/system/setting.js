@@ -9,6 +9,14 @@ const Settings = (() => {
   // ── ค่า default + โหลดจาก localStorage ──────
   const DEFAULTS = {
     shadowEnabled: true,
+    antialiasEnabled: true,
+    pixelRatioLevel: 'high', // 'low' | 'medium' | 'high'
+  };
+
+  const PIXEL_RATIO_VALUES = {
+    low: 1,
+    medium: Math.min(window.devicePixelRatio || 1, 1.5),
+    high: Math.min(window.devicePixelRatio || 1, 2),
   };
 
   const _state = Object.assign({}, DEFAULTS);
@@ -37,12 +45,61 @@ const Settings = (() => {
     }
   }
 
+  function _applyPixelRatio(level) {
+    if (typeof renderer !== 'undefined') {
+      const value = PIXEL_RATIO_VALUES[level] || PIXEL_RATIO_VALUES.high;
+      renderer.setPixelRatio(value);
+      // ต้อง trigger resize เพื่อให้ canvas อัปเดตขนาดตาม pixel ratio ใหม่
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+  }
+
+  // antialias เปลี่ยน runtime ไม่ได้ (เป็น constructor option ของ WebGLRenderer)
+  // ต้อง reload หน้าเพื่อสร้าง renderer ใหม่
+  function _applyAntialias(enabled) {
+    // ค่าจะถูก _save() ไว้แล้วก่อนเรียกฟังก์ชันนี้ และ scene.js
+    // จะอ่านค่านี้จาก localStorage ตอนสร้าง renderer ใหม่หลัง reload
+    window.location.reload();
+  }
+
   function _applyAll() {
     _applyShadow(_state.shadowEnabled);
+    _applyPixelRatio(_state.pixelRatioLevel);
   }
 
   // ── Build UI ─────────────────────────────────
   let _panel, _overlay, _isOpen = false;
+
+  function _buildSegmentedRow(labelText, key, options, onChange) {
+    const row = document.createElement('div');
+    row.className = 'st-row st-row-segmented';
+
+    const label = document.createElement('span');
+    label.className = 'st-label';
+    label.textContent = labelText;
+
+    const seg = document.createElement('div');
+    seg.className = 'st-segmented';
+
+    options.forEach(opt => {
+      const btn = document.createElement('div');
+      btn.className = 'st-seg-btn' + (_state[key] === opt.value ? ' active' : '');
+      btn.textContent = opt.label;
+      btn.addEventListener('click', () => {
+        if (_state[key] === opt.value) return;
+        _state[key] = opt.value;
+        _save();
+        seg.querySelectorAll('.st-seg-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        if (onChange) onChange(opt.value);
+      });
+      seg.appendChild(btn);
+    });
+
+    row.appendChild(label);
+    row.appendChild(seg);
+    return row;
+  }
 
   function _buildToggleRow(labelText, key, onChange) {
     const row = document.createElement('div');
@@ -199,6 +256,38 @@ const Settings = (() => {
       .st-track.active .st-knob {
         left: 23px;
       }
+
+      /* ── Segmented Control (Pixel Ratio) ── */
+      .st-row-segmented {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+      }
+      .st-segmented {
+        display: flex;
+        width: 100%;
+        background: rgba(255,255,255,0.08);
+        border-radius: 10px;
+        padding: 3px;
+        gap: 3px;
+      }
+      .st-seg-btn {
+        flex: 1;
+        text-align: center;
+        font-size: 12px;
+        font-family: sans-serif;
+        color: rgba(255,255,255,0.6);
+        padding: 6px 0;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background 0.2s, color 0.2s;
+        user-select: none;
+      }
+      .st-seg-btn.active {
+        background: #4caf50;
+        color: #fff;
+        font-weight: 600;
+      }
     `;
     document.head.appendChild(style);
 
@@ -234,6 +323,30 @@ const Settings = (() => {
       _applyShadow(val);
     });
     panel.appendChild(shadowRow);
+
+    const divider2 = document.createElement('div');
+    divider2.className = 'st-divider';
+    panel.appendChild(divider2);
+
+    // — Antialias toggle (reload เมื่อเปลี่ยน) —
+    const aaRow = _buildToggleRow('Antialias', 'antialiasEnabled', (val) => {
+      _applyAntialias(val);
+    });
+    panel.appendChild(aaRow);
+
+    const divider3 = document.createElement('div');
+    divider3.className = 'st-divider';
+    panel.appendChild(divider3);
+
+    // — Pixel Ratio segmented control —
+    const pixelRatioRow = _buildSegmentedRow('ความละเอียด', 'pixelRatioLevel', [
+      { label: 'ต่ำ', value: 'low' },
+      { label: 'กลาง', value: 'medium' },
+      { label: 'สูง', value: 'high' },
+    ], (val) => {
+      _applyPixelRatio(val);
+    });
+    panel.appendChild(pixelRatioRow);
 
     document.body.appendChild(panel);
     _panel = panel;

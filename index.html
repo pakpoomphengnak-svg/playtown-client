@@ -19,10 +19,16 @@
       -webkit-user-select: none;
       -webkit-touch-callout: none;
       user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      tap-highlight-color: transparent;
+      outline: none;
     }
     input, textarea, [contenteditable] {
       -webkit-user-select: text;
       user-select: text;
+    }
+    button, a, [role="button"] {
+      -webkit-tap-highlight-color: transparent;
     }
   </style>
   <script>

@@ -182,9 +182,9 @@ const Player = {
     this.x += dx;
     this.z += dz;
 
-    // clamp ไม่ให้ออกนอกแผนที่
-    this.x = Math.max(-495, Math.min(495, this.x));
-    this.z = Math.max(-495, Math.min(495, this.z));
+    // clamp ไม่ให้ออกนอกแผนที่ (beach ขยายเป็น 900x900 → ±450, เผื่อ margin)
+    this.x = Math.max(-990, Math.min(990, this.x));
+    this.z = Math.max(-990, Math.min(990, this.z));
   },
 
   // ── PvP: จุดเกิดใหม่ตอนตาย (ใช้ตำแหน่งเริ่มเกมเริ่มต้นเป็นจุด respawn) ──
